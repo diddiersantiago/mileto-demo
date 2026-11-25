@@ -1,0 +1,306 @@
+{
+ "edificio": {
+  "nombre": "Mileto",
+  "lugar": "Chapinero Alto · Bogotá"
+ },
+ "precio_m2": {
+  "estudio": 12200000,
+  "dos": 11000000,
+  "penthouse": 13500000
+ },
+ "unidades": {
+  "201": {
+   "piso": 2,
+   "tipologia": "dos",
+   "precio": 1175000000,
+   "estado": "disponible"
+  },
+  "202": {
+   "piso": 2,
+   "tipologia": "estudio",
+   "precio": 570000000,
+   "estado": "disponible"
+  },
+  "203": {
+   "piso": 2,
+   "tipologia": "estudio",
+   "precio": 570000000,
+   "estado": "disponible"
+  },
+  "204": {
+   "piso": 2,
+   "tipologia": "estudio",
+   "precio": 570000000,
+   "estado": "vendido"
+  },
+  "205": {
+   "piso": 2,
+   "tipologia": "dos",
+   "precio": 1175000000,
+   "estado": "disponible"
+  },
+  "206": {
+   "piso": 2,
+   "tipologia": "dos",
+   "precio": 1175000000,
+   "estado": "vendido"
+  },
+  "207": {
+   "piso": 2,
+   "tipologia": "dos",
+   "precio": 1175000000,
+   "estado": "disponible"
+  },
+  "208": {
+   "piso": 2,
+   "tipologia": "estudio",
+   "precio": 570000000,
+   "estado": "apartado"
+  },
+  "209": {
+   "piso": 2,
+   "tipologia": "estudio",
+   "precio": 570000000,
+   "estado": "vendido"
+  },
+  "301": {
+   "piso": 3,
+   "tipologia": "dos",
+   "precio": 1185000000,
+   "estado": "disponible"
+  },
+  "302": {
+   "piso": 3,
+   "tipologia": "estudio",
+   "precio": 575000000,
+   "estado": "vendido"
+  },
+  "303": {
+   "piso": 3,
+   "tipologia": "estudio",
+   "precio": 575000000,
+   "estado": "disponible"
+  },
+  "304": {
+   "piso": 3,
+   "tipologia": "estudio",
+   "precio": 575000000,
+   "estado": "apartado"
+  },
+  "305": {
+   "piso": 3,
+   "tipologia": "dos",
+   "precio": 1185000000,
+   "estado": "vendido"
+  },
+  "306": {
+   "piso": 3,
+   "tipologia": "dos",
+   "precio": 1185000000,
+   "estado": "disponible"
+  },
+  "307": {
+   "piso": 3,
+   "tipologia": "dos",
+   "precio": 1185000000,
+   "estado": "apartado"
+  },
+  "308": {
+   "piso": 3,
+   "tipologia": "estudio",
+   "precio": 575000000,
+   "estado": "disponible"
+  },
+  "309": {
+   "piso": 3,
+   "tipologia": "estudio",
+   "precio": 575000000,
+   "estado": "apartado"
+  },
+  "401": {
+   "piso": 4,
+   "tipologia": "dos",
+   "precio": 1200000000,
+   "estado": "disponible"
+  },
+  "402": {
+   "piso": 4,
+   "tipologia": "estudio",
+   "precio": 580000000,
+   "estado": "disponible"
+  },
+  "403": {
+   "piso": 4,
+   "tipologia": "estudio",
+   "precio": 580000000,
+   "estado": "vendido"
+  },
+  "404": {
+   "piso": 4,
+   "tipologia": "estudio",
+   "precio": 580000000,
+   "estado": "disponible"
+  },
+  "405": {
+   "piso": 4,
+   "tipologia": "dos",
+   "precio": 1200000000,
+   "estado": "disponible"
+  },
+  "406": {
+   "piso": 4,
+   "tipologia": "dos",
+   "precio": 1200000000,
+   "estado": "disponible"
+  },
+  "407": {
+   "piso": 4,
+   "tipologia": "dos",
+   "precio": 1200000000,
+   "estado": "vendido"
+  },
+  "408": {
+   "piso": 4,
+   "tipologia": "estudio",
+   "precio": 580000000,
+   "estado": "disponible"
+  },
+  "409": {
+   "piso": 4,
+   "tipologia": "estudio",
+   "precio": 580000000,
+   "estado": "disponible"
+  },
+  "501": {
+   "piso": 5,
+   "tipologia": "dos",
+   "precio": 1215000000,
+   "estado": "vendido"
+  },
+  "502": {
+   "piso": 5,
+   "tipologia": "estudio",
+   "precio": 590000000,
+   "estado": "disponible"
+  },
+  "503": {
+   "piso": 5,
+   "tipologia": "estudio",
+   "precio": 590000000,
+   "estado": "disponible"
+  },
+  "504": {
+   "piso": 5,
+   "tipologia": "estudio",
+   "precio": 590000000,
+   "estado": "disponible"
+  },
+  "505": {
+   "piso": 5,
+   "tipologia": "dos",
+   "precio": 1215000000,
+   "estado": "apartado"
+  },
+  "506": {
+   "piso": 5,
+   "tipologia": "dos",
+   "precio": 1215000000,
+   "estado": "disponible"
+  },
+  "507": {
+   "piso": 5,
+   "tipologia": "dos",
+   "precio": 1215000000,
+   "estado": "disponible"
+  },
+  "508": {
+   "piso": 5,
+   "tipologia": "estudio",
+   "precio": 590000000,
+   "estado": "disponible"
+  },
+  "509": {
+   "piso": 5,
+   "tipologia": "estudio",
+   "precio": 590000000,
+   "estado": "disponible"
+  },
+  "601": {
+   "piso": 6,
+   "tipologia": "dos",
+   "precio": 1230000000,
+   "estado": "disponible"
+  },
+  "602": {
+   "piso": 6,
+   "tipologia": "estudio",
+   "precio": 595000000,
+   "estado": "disponible"
+  },
+  "603": {
+   "piso": 6,
+   "tipologia": "estudio",
+   "precio": 595000000,
+   "estado": "disponible"
+  },
+  "604": {
+   "piso": 6,
+   "tipologia": "estudio",
+   "precio": 595000000,
+   "estado": "apartado"
+  },
+  "605": {
+   "piso": 6,
+   "tipologia": "dos",
+   "precio": 1230000000,
+   "estado": "vendido"
+  },
+  "606": {
+   "piso": 6,
+   "tipologia": "dos",
+   "precio": 1230000000,
+   "estado": "apartado"
+  },
+  "607": {
+   "piso": 6,
+   "tipologia": "dos",
+   "precio": 1230000000,
+   "estado": "apartado"
+  },
+  "608": {
+   "piso": 6,
+   "tipologia": "estudio",
+   "precio": 595000000,
+   "estado": "disponible"
+  },
+  "609": {
+   "piso": 6,
+   "tipologia": "estudio",
+   "precio": 595000000,
+   "estado": "disponible"
+  },
+  "PH A": {
+   "piso": 7,
+   "tipologia": "penthouse",
+   "precio": 3460000000,
+   "estado": "disponible"
+  },
+  "PH B": {
+   "piso": 7,
+   "tipologia": "penthouse",
+   "precio": 3460000000,
+   "estado": "apartado"
+  }
+ },
+ "financiacion": {
+  "inicial": 30,
+  "meses": 24,
+  "anios": 15,
+  "tasa": 12,
+  "separacion": 10000000
+ },
+ "contacto": {
+  "whatsapp": "573000000000"
+ },
+ "nota": "Precios y disponibilidad de referencia para la demostración."
+}

@@ -1,0 +1,11 @@
+{
+ "cuadros": 48,
+ "ancho": 1440,
+ "alto": 810,
+ "estados": [
+  "dia",
+  "noche"
+ ],
+ "patron": "{estado}_{indice:03d}.webp",
+ "inicio_grados": 225.0
+}

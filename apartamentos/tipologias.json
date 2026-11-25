@@ -1,0 +1,509 @@
+{
+ "estudio": {
+  "planta": "apartamentos/estudio_planta.webp",
+  "planta_ancho": 720,
+  "planta_alto": 1032,
+  "titulo": "Aparta-estudio",
+  "imagen": "apartamentos/estudio.webp",
+  "ancho": 2000,
+  "alto": 1564,
+  "interior_m2": 43.2,
+  "exterior_m2": 8.4,
+  "alcobas": "Un ambiente",
+  "banos": "1 baño",
+  "estancias": [
+   {
+    "id": "cocina",
+    "nombre": "Cocina",
+    "m2": 8.4,
+    "exterior": false,
+    "foto": "estancias/estudio_cocina.webp",
+    "pano": "panos/estudio_cocina.webp",
+    "pos": [
+     2.7,
+     1.3
+    ],
+    "pasos": [
+     "estar",
+     "bano"
+    ],
+    "x": 0.6838,
+    "y": 0.2858
+   },
+   {
+    "id": "bano",
+    "nombre": "Baño",
+    "m2": 6.0,
+    "exterior": false,
+    "foto": "estancias/estudio_bano.webp",
+    "pano": "panos/estudio_bano.webp",
+    "pos": [
+     4.5,
+     1.3
+    ],
+    "pasos": [
+     "cocina"
+    ],
+    "x": 0.5622,
+    "y": 0.1999
+   },
+   {
+    "id": "estar",
+    "nombre": "Estar · alcoba",
+    "m2": 28.8,
+    "exterior": false,
+    "foto": "estancias/estudio_estar.webp",
+    "pano": "panos/estudio_estar.webp",
+    "pos": [
+     2.8,
+     4.0
+    ],
+    "pasos": [
+     "cocina"
+    ],
+    "x": 0.5682,
+    "y": 0.3948
+   },
+   {
+    "id": "balcon",
+    "nombre": "Balcón",
+    "m2": 8.4,
+    "exterior": true,
+    "foto": null,
+    "pano": null,
+    "pos": null,
+    "pasos": [],
+    "x": 0.2955,
+    "y": 0.6604
+   }
+  ]
+ },
+ "dos": {
+  "planta": "apartamentos/dos_planta.webp",
+  "planta_ancho": 1584,
+  "planta_alto": 1128,
+  "titulo": "Dos alcobas",
+  "imagen": "apartamentos/dos.webp",
+  "ancho": 2000,
+  "alto": 1463,
+  "interior_m2": 103.0,
+  "exterior_m2": 9.1,
+  "alcobas": "2 alcobas",
+  "banos": "2 baños",
+  "estancias": [
+   {
+    "id": "alcoba1",
+    "nombre": "Alcoba principal",
+    "m2": 17.2,
+    "exterior": false,
+    "foto": "estancias/dos_alcoba1.webp",
+    "pano": "panos/dos_alcoba1.webp",
+    "pos": [
+     2.9,
+     6.0
+    ],
+    "pasos": [
+     "social",
+     "bano1"
+    ],
+    "x": 0.5855,
+    "y": 0.6519
+   },
+   {
+    "id": "vestier",
+    "nombre": "Vestier",
+    "m2": 4.6,
+    "exterior": false,
+    "foto": null,
+    "pano": null,
+    "pos": null,
+    "pasos": [],
+    "x": 0.7519,
+    "y": 0.5578
+   },
+   {
+    "id": "bano1",
+    "nombre": "Baño principal",
+    "m2": 8.6,
+    "exterior": false,
+    "foto": "estancias/dos_bano1.webp",
+    "pano": "panos/dos_bano1.webp",
+    "pos": [
+     2.3,
+     1.35
+    ],
+    "pasos": [
+     "alcoba1"
+    ],
+    "x": 0.7766,
+    "y": 0.4614
+   },
+   {
+    "id": "acceso",
+    "nombre": "Hall",
+    "m2": 4.1,
+    "exterior": false,
+    "foto": null,
+    "pano": null,
+    "pos": null,
+    "pasos": [],
+    "x": 0.6419,
+    "y": 0.394
+   },
+   {
+    "id": "cocina",
+    "nombre": "Cocina",
+    "m2": 12.5,
+    "exterior": false,
+    "foto": "estancias/dos_cocina.webp",
+    "pano": "panos/dos_cocina.webp",
+    "pos": [
+     7.4,
+     1.22
+    ],
+    "pasos": [
+     "social"
+    ],
+    "x": 0.5511,
+    "y": 0.2777
+   },
+   {
+    "id": "social",
+    "nombre": "Sala · comedor",
+    "m2": 27.9,
+    "exterior": false,
+    "foto": "estancias/dos_social.webp",
+    "pano": "panos/dos_social.webp",
+    "pos": [
+     6.45,
+     3.85
+    ],
+    "pasos": [
+     "cocina",
+     "alcoba1",
+     "alcoba2"
+    ],
+    "x": 0.5077,
+    "y": 0.4008
+   },
+   {
+    "id": "hall2",
+    "nombre": "Hall",
+    "m2": 2.9,
+    "exterior": false,
+    "foto": null,
+    "pano": null,
+    "pos": null,
+    "pasos": [],
+    "x": 0.3703,
+    "y": 0.2596
+   },
+   {
+    "id": "alcoba2",
+    "nombre": "Alcoba 2",
+    "m2": 13.7,
+    "exterior": false,
+    "foto": "estancias/dos_alcoba2.webp",
+    "pano": "panos/dos_alcoba2.webp",
+    "pos": [
+     10.6,
+     5.6
+    ],
+    "pasos": [
+     "social"
+    ],
+    "x": 0.2733,
+    "y": 0.3312
+   },
+   {
+    "id": "bano2",
+    "nombre": "Baño 2",
+    "m2": 5.8,
+    "exterior": false,
+    "foto": null,
+    "pano": null,
+    "pos": null,
+    "pasos": [],
+    "x": 0.3188,
+    "y": 0.2119
+   },
+   {
+    "id": "ropas",
+    "nombre": "Ropas",
+    "m2": 5.8,
+    "exterior": false,
+    "foto": null,
+    "pano": null,
+    "pos": null,
+    "pasos": [],
+    "x": 0.3911,
+    "y": 0.1452
+   },
+   {
+    "id": "balcon",
+    "nombre": "Balcón",
+    "m2": 9.1,
+    "exterior": true,
+    "foto": null,
+    "pano": null,
+    "pos": null,
+    "pasos": [],
+    "x": 0.2673,
+    "y": 0.579
+   }
+  ]
+ },
+ "penthouse": {
+  "planta": "apartamentos/penthouse_planta.webp",
+  "planta_ancho": 1800,
+  "planta_alto": 1150,
+  "titulo": "Penthouse",
+  "imagen": "apartamentos/penthouse.webp",
+  "ancho": 2000,
+  "alto": 1367,
+  "interior_m2": 218.9,
+  "exterior_m2": 57.2,
+  "alcobas": "3 alcobas",
+  "banos": "3 baños y baño social",
+  "estancias": [
+   {
+    "id": "alcoba1",
+    "nombre": "Alcoba principal",
+    "m2": 27.0,
+    "exterior": false,
+    "foto": "estancias/penthouse_alcoba1.webp",
+    "pano": "panos/penthouse_alcoba1.webp",
+    "pos": [
+     3.9,
+     9.6
+    ],
+    "pasos": [
+     "bano1",
+     "alcoba2"
+    ],
+    "x": 0.6146,
+    "y": 0.6931
+   },
+   {
+    "id": "vestier1",
+    "nombre": "Vestier",
+    "m2": 9.4,
+    "exterior": false,
+    "foto": null,
+    "pano": null,
+    "pos": null,
+    "pasos": [],
+    "x": 0.7552,
+    "y": 0.6093
+   },
+   {
+    "id": "bano1",
+    "nombre": "Baño principal",
+    "m2": 22.9,
+    "exterior": false,
+    "foto": "estancias/penthouse_bano1.webp",
+    "pano": "panos/penthouse_bano1.webp",
+    "pos": [
+     3.3,
+     2.6
+    ],
+    "pasos": [
+     "alcoba1"
+    ],
+    "x": 0.8001,
+    "y": 0.4826
+   },
+   {
+    "id": "galeria",
+    "nombre": "Galería",
+    "m2": 9.1,
+    "exterior": false,
+    "foto": null,
+    "pano": null,
+    "pos": null,
+    "pasos": [],
+    "x": 0.5803,
+    "y": 0.4847
+   },
+   {
+    "id": "alcoba2",
+    "nombre": "Alcoba 2",
+    "m2": 15.4,
+    "exterior": false,
+    "foto": "estancias/penthouse_alcoba2.webp",
+    "pano": "panos/penthouse_alcoba2.webp",
+    "pos": [
+     6.2,
+     8.4
+    ],
+    "pasos": [
+     "salon",
+     "alcoba1"
+    ],
+    "x": 0.5055,
+    "y": 0.6362
+   },
+   {
+    "id": "alcoba3",
+    "nombre": "Alcoba 3",
+    "m2": 15.4,
+    "exterior": false,
+    "foto": null,
+    "pano": null,
+    "pos": null,
+    "pasos": [],
+    "x": 0.411,
+    "y": 0.5474
+   },
+   {
+    "id": "bano2",
+    "nombre": "Baño 2",
+    "m2": 6.8,
+    "exterior": false,
+    "foto": null,
+    "pano": null,
+    "pos": null,
+    "pasos": [],
+    "x": 0.6533,
+    "y": 0.4693
+   },
+   {
+    "id": "bano3",
+    "nombre": "Baño 3",
+    "m2": 6.7,
+    "exterior": false,
+    "foto": null,
+    "pano": null,
+    "pos": null,
+    "pasos": [],
+    "x": 0.5859,
+    "y": 0.4114
+   },
+   {
+    "id": "closet",
+    "nombre": "Clóset",
+    "m2": 2.2,
+    "exterior": false,
+    "foto": null,
+    "pano": null,
+    "pos": null,
+    "pasos": [],
+    "x": 0.5375,
+    "y": 0.3808
+   },
+   {
+    "id": "ropas",
+    "nombre": "Ropas",
+    "m2": 12.0,
+    "exterior": false,
+    "foto": null,
+    "pano": null,
+    "pos": null,
+    "pasos": [],
+    "x": 0.6952,
+    "y": 0.359
+   },
+   {
+    "id": "servicio",
+    "nombre": "Paso",
+    "m2": 2.2,
+    "exterior": false,
+    "foto": null,
+    "pano": null,
+    "pos": null,
+    "pasos": [],
+    "x": 0.6392,
+    "y": 0.282
+   },
+   {
+    "id": "social_bano",
+    "nombre": "Baño social",
+    "m2": 3.2,
+    "exterior": false,
+    "foto": null,
+    "pano": null,
+    "pos": null,
+    "pasos": [],
+    "x": 0.6076,
+    "y": 0.3079
+   },
+   {
+    "id": "acceso",
+    "nombre": "Hall de acceso",
+    "m2": 17.1,
+    "exterior": false,
+    "foto": null,
+    "pano": null,
+    "pos": null,
+    "pasos": [],
+    "x": 0.5346,
+    "y": 0.2871
+   },
+   {
+    "id": "cocina",
+    "nombre": "Cocina",
+    "m2": 29.6,
+    "exterior": false,
+    "foto": "estancias/penthouse_cocina.webp",
+    "pano": "panos/penthouse_cocina.webp",
+    "pos": [
+     16.9,
+     4.6
+    ],
+    "pasos": [
+     "salon"
+    ],
+    "x": 0.4523,
+    "y": 0.1674
+   },
+   {
+    "id": "salon",
+    "nombre": "Salón · comedor",
+    "m2": 39.9,
+    "exterior": false,
+    "foto": "estancias/penthouse_salon.webp",
+    "pano": "panos/penthouse_salon.webp",
+    "pos": [
+     14.7,
+     6.6
+    ],
+    "pasos": [
+     "cocina",
+     "terraza",
+     "alcoba2"
+    ],
+    "x": 0.3582,
+    "y": 0.3004
+   },
+   {
+    "id": "terraza",
+    "nombre": "Terraza",
+    "m2": 49.9,
+    "exterior": true,
+    "foto": "estancias/penthouse_terraza.webp",
+    "pano": "panos/penthouse_terraza.webp",
+    "pos": [
+     20.4,
+     12.6
+    ],
+    "pasos": [
+     "salon"
+    ],
+    "x": 0.1958,
+    "y": 0.437
+   },
+   {
+    "id": "balcon1",
+    "nombre": "Balcón",
+    "m2": 7.3,
+    "exterior": true,
+    "foto": null,
+    "pano": null,
+    "pos": null,
+    "pasos": [],
+    "x": 0.5677,
+    "y": 0.7685
+   }
+  ]
+ }
+}

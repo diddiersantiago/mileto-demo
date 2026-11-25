@@ -1,0 +1,283 @@
+{
+ "piso-1": {
+  "imagen": "plantas/piso-1.webp",
+  "ancho": 2600,
+  "alto": 1159,
+  "unidades": [],
+  "zonas": [
+   {
+    "nombre": "Lobby · recepción",
+    "m2": 103.2,
+    "x": 0.4324,
+    "y": 0.7172
+   },
+   {
+    "nombre": "Local comercial 1",
+    "m2": 103.0,
+    "x": 0.1486,
+    "y": 0.803
+   },
+   {
+    "nombre": "Coworking",
+    "m2": 74.9,
+    "x": 0.6757,
+    "y": 0.803
+   },
+   {
+    "nombre": "Local comercial 2",
+    "m2": 74.9,
+    "x": 0.8919,
+    "y": 0.803
+   },
+   {
+    "nombre": "Gimnasio",
+    "m2": 103.0,
+    "x": 0.1486,
+    "y": 0.3182
+   },
+   {
+    "nombre": "Salón social",
+    "m2": 140.4,
+    "x": 0.5,
+    "y": 0.3182
+   },
+   {
+    "nombre": "Lounge · sala de juntas",
+    "m2": 103.0,
+    "x": 0.8514,
+    "y": 0.3182
+   },
+   {
+    "nombre": "Terraza del salón",
+    "m2": 43.2,
+    "x": 0.5,
+    "y": 0.0606
+   }
+  ]
+ },
+ "piso-tipo": {
+  "imagen": "plantas/piso-tipo.webp",
+  "ancho": 2600,
+  "alto": 1206,
+  "unidades": [
+   {
+    "numero": "01",
+    "tipologia": "dos",
+    "espejo": false,
+    "voltea_x": false,
+    "voltea_y": false,
+    "caja": [
+     0.0,
+     0.0777,
+     0.2973,
+     0.4563
+    ],
+    "marco": [
+     0.0,
+     0.0,
+     0.2973,
+     0.4563
+    ]
+   },
+   {
+    "numero": "02",
+    "tipologia": "estudio",
+    "espejo": false,
+    "voltea_x": false,
+    "voltea_y": false,
+    "caja": [
+     0.2973,
+     0.1068,
+     0.4324,
+     0.4563
+    ],
+    "marco": [
+     0.2973,
+     0.0388,
+     0.4324,
+     0.4563
+    ]
+   },
+   {
+    "numero": "03",
+    "tipologia": "estudio",
+    "espejo": true,
+    "voltea_x": true,
+    "voltea_y": false,
+    "caja": [
+     0.4324,
+     0.1068,
+     0.5676,
+     0.4563
+    ],
+    "marco": [
+     0.4324,
+     0.0388,
+     0.5676,
+     0.4563
+    ]
+   },
+   {
+    "numero": "04",
+    "tipologia": "estudio",
+    "espejo": false,
+    "voltea_x": false,
+    "voltea_y": false,
+    "caja": [
+     0.5676,
+     0.1068,
+     0.7027,
+     0.4563
+    ],
+    "marco": [
+     0.5676,
+     0.0388,
+     0.7027,
+     0.4563
+    ]
+   },
+   {
+    "numero": "05",
+    "tipologia": "dos",
+    "espejo": true,
+    "voltea_x": true,
+    "voltea_y": false,
+    "caja": [
+     0.7027,
+     0.0777,
+     1.0,
+     0.4563
+    ],
+    "marco": [
+     0.7027,
+     0.0,
+     1.0,
+     0.4563
+    ]
+   },
+   {
+    "numero": "06",
+    "tipologia": "dos",
+    "espejo": true,
+    "voltea_x": false,
+    "voltea_y": true,
+    "caja": [
+     0.0,
+     0.5437,
+     0.2973,
+     0.9223
+    ],
+    "marco": [
+     0.0,
+     0.5437,
+     0.2973,
+     1.0
+    ]
+   },
+   {
+    "numero": "07",
+    "tipologia": "dos",
+    "espejo": true,
+    "voltea_x": false,
+    "voltea_y": true,
+    "caja": [
+     0.4324,
+     0.5437,
+     0.7297,
+     0.9223
+    ],
+    "marco": [
+     0.4324,
+     0.5437,
+     0.7297,
+     1.0
+    ]
+   },
+   {
+    "numero": "08",
+    "tipologia": "estudio",
+    "espejo": true,
+    "voltea_x": false,
+    "voltea_y": true,
+    "caja": [
+     0.7297,
+     0.5437,
+     0.8649,
+     0.8932
+    ],
+    "marco": [
+     0.7297,
+     0.5437,
+     0.8649,
+     0.9612
+    ]
+   },
+   {
+    "numero": "09",
+    "tipologia": "estudio",
+    "espejo": false,
+    "voltea_x": true,
+    "voltea_y": true,
+    "caja": [
+     0.8649,
+     0.5437,
+     1.0,
+     0.8932
+    ],
+    "marco": [
+     0.8649,
+     0.5437,
+     1.0,
+     0.9612
+    ]
+   }
+  ],
+  "zonas": []
+ },
+ "piso-7": {
+  "imagen": "plantas/piso-7.webp",
+  "ancho": 2600,
+  "alto": 1019,
+  "unidades": [
+   {
+    "numero": "PH A",
+    "tipologia": "penthouse",
+    "espejo": true,
+    "voltea_x": true,
+    "voltea_y": false,
+    "caja": [
+     0.0541,
+     0.1379,
+     0.4865,
+     0.7931
+    ],
+    "marco": [
+     -0.0,
+     -0.0,
+     0.4865,
+     0.7931
+    ]
+   },
+   {
+    "numero": "PH B",
+    "tipologia": "penthouse",
+    "espejo": false,
+    "voltea_x": false,
+    "voltea_y": false,
+    "caja": [
+     0.4865,
+     0.1379,
+     0.9189,
+     0.7931
+    ],
+    "marco": [
+     0.4865,
+     -0.0,
+     0.973,
+     0.7931
+    ]
+   }
+  ],
+  "zonas": []
+ }
+}

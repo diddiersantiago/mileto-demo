@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Vista exterior · 360°</title>
+<style>
+  :root {
+    --tinta: #f3efe7;
+    --tinta-suave: rgba(243, 239, 231, .62);
+    --vidrio: rgba(14, 18, 28, .46);
+    --borde: rgba(243, 239, 231, .16);
+    --acento: #d9a35c;
+    --funde: 1600ms;              /* la transicion de dia a noche */
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; background: #0b0f18; color: var(--tinta);
+    font-family: "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased; overflow: hidden; }
+
+  /* El escenario: dos lienzos, uno encima del otro, siempre en el mismo cuadro.
+     El de noche se funde por opacidad; nada mas cambia. */
+  #escena { position: fixed; inset: 0; touch-action: none; cursor: grab; user-select: none;
+    -webkit-user-select: none; }
+  #escena.agarrando { cursor: grabbing; }
+  #escena canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #noche { opacity: 0; transition: opacity var(--funde) cubic-bezier(.45, 0, .25, 1); }
+  .de-noche #noche { opacity: 1; }
+  #velo { position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(180deg, rgba(8,11,18,.42) 0%, rgba(8,11,18,0) 22%,
+                rgba(8,11,18,0) 68%, rgba(8,11,18,.55) 100%); }
+
+  header { position: fixed; left: clamp(16px, 3vw, 40px); top: clamp(14px, 3vh, 32px);
+    pointer-events: none; }
+  header .sobre { font-size: 11px; letter-spacing: .28em; text-transform: uppercase;
+    color: var(--tinta-suave); }
+  header h1 { margin: 6px 0 0; font-family: Georgia, "Times New Roman", serif; font-weight: 400;
+    font-size: clamp(24px, 3.4vw, 40px); letter-spacing: .01em; }
+
+  .barra { position: fixed; left: 50%; bottom: clamp(16px, 4vh, 36px); transform: translateX(-50%);
+    display: flex; align-items: center; gap: 14px; }
+  .interruptor { display: flex; padding: 4px; border-radius: 999px; background: var(--vidrio);
+    border: 1px solid var(--borde); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+  .interruptor button { appearance: none; border: 0; background: transparent; color: var(--tinta-suave);
+    font: inherit; font-size: 13px; letter-spacing: .08em; padding: 10px 20px; border-radius: 999px;
+    cursor: pointer; display: flex; align-items: center; gap: 8px;
+    transition: color 300ms ease, background 300ms ease; }
+  .interruptor button svg { width: 16px; height: 16px; }
+  .interruptor button[aria-pressed="true"] { background: rgba(243, 239, 231, .14); color: var(--tinta); }
+  .interruptor button:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+
+  #cara { position: fixed; left: clamp(16px, 3vw, 40px); bottom: clamp(20px, 4.6vh, 42px);
+    font-size: 12px; letter-spacing: .2em; text-transform: uppercase; color: var(--tinta-suave);
+    pointer-events: none; }
+  #cara b { display: block; margin-top: 4px; font-weight: 500; font-size: 15px; letter-spacing: .06em;
+    text-transform: none; color: var(--tinta); }
+
+  #pista { position: fixed; right: clamp(16px, 3vw, 40px); bottom: clamp(20px, 4.6vh, 42px);
+    font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--tinta-suave);
+    display: flex; align-items: center; gap: 10px; pointer-events: none;
+    transition: opacity 600ms ease; }
+  #pista svg { width: 28px; height: 14px; }
+  .tocado #pista { opacity: 0; }
+
+  /* La carga se ensena como una linea de 1 px que avanza, sin porcentaje. */
+  #carga { position: fixed; left: 0; top: 0; height: 2px; width: 0; background: var(--acento);
+    transition: width 200ms ease, opacity 700ms ease 300ms; }
+  .listo #carga { opacity: 0; }
+
+  @media (max-width: 640px) {
+    #pista span { display: none; }
+    #cara { bottom: 84px; }
+    #pista { bottom: 84px; }
+  }
+  @media (prefers-reduced-motion: reduce) { :root { --funde: 300ms; } }
+</style>
+</head>
+<body>
+<div id="escena" role="img" aria-label="Vista exterior del edificio; arrastra para girarlo">
+  <canvas id="dia"></canvas>
+  <canvas id="noche"></canvas>
+  <div id="velo"></div>
+</div>
+<div id="carga"></div>
+
+<header>
+  <div class="sobre">Vista exterior · 360°</div>
+  <h1>El edificio</h1>
+</header>
+
+<div id="cara">Estás viendo<b id="cara-nombre">Fachada sur · acceso</b></div>
+
+<div class="barra">
+  <div class="interruptor" role="group" aria-label="Hora del día">
+    <button id="btn-dia" aria-pressed="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+        <circle cx="12" cy="12" r="4"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/>
+      </svg>Día</button>
+    <button id="btn-noche" aria-pressed="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/>
+      </svg>Noche</button>
+  </div>
+</div>
+
+<div id="pista">
+  <svg viewBox="0 0 28 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M1 7h26M6 2L1 7l5 5M22 2l5 5-5 5"/>
+  </svg><span>Arrastra para girar</span>
+</div>
+
+<script>
+(() => {
+  const CARPETA = "exterior/cuadros/";
+  // Lo que escribe `build_edificio3d.py` en giro.json; estos son sus valores por
+  // defecto, por si el fichero aun no existe (una vuelta a medio renderizar).
+  let giro = { cuadros: 48, ancho: 1440, alto: 810, inicio_grados: 225 };
+
+  const escena = document.getElementById("escena");
+  const lienzos = { dia: document.getElementById("dia"), noche: document.getElementById("noche") };
+  const ctx = { dia: lienzos.dia.getContext("2d"), noche: lienzos.noche.getContext("2d") };
+  const imagenes = { dia: [], noche: [] };
+  const carga = document.getElementById("carga");
+  const caraNombre = document.getElementById("cara-nombre");
+
+  let indice = 0;            // posicion continua del giro, en cuadros (con decimales)
+  let velocidad = 0;         // cuadros por segundo, para la inercia
+  let paseo = true;          // gira solo hasta que alguien lo toca
+  let estado = "dia";
+  let pintado = { dia: -1, noche: -1 };
+
+  const nombre = (e, i) => `${CARPETA}${e}_${String(i).padStart(3, "0")}.webp`;
+  const modulo = (a, n) => ((a % n) + n) % n;
+
+  function ajustar() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    for (const c of Object.values(lienzos)) {
+      c.width = Math.round(escena.clientWidth * dpr);
+      c.height = Math.round(escena.clientHeight * dpr);
+    }
+    pintado = { dia: -1, noche: -1 };
+    pintar();
+  }
+
+  // Dibuja el cuadro cubriendo el lienzo entero (como `object-fit: cover`),
+  // anclado un poco abajo para no cortar el pie del edificio en pantallas altas.
+  function dibujar(e, i) {
+    const img = imagenes[e][i];
+    if (!img || !img.complete || !img.naturalWidth) return false;
+    const c = lienzos[e], g = ctx[e];
+    const cubre = Math.max(c.width / img.naturalWidth, c.height / img.naturalHeight);
+    const cabe = Math.min(c.width / img.naturalWidth, c.height / img.naturalHeight);
+    // En un celular en vertical, cubrir del todo deja ver solo el tercio central
+    // del edificio. Se amplia como mucho un 55 % sobre "que quepa entero" y lo
+    // que sobra arriba y abajo queda del color del fondo.
+    const escala = Math.min(cubre, cabe * 1.55);
+    const w = img.naturalWidth * escala, h = img.naturalHeight * escala;
+    g.clearRect(0, 0, c.width, c.height);
+    g.drawImage(img, (c.width - w) / 2, (c.height - h) * (h > c.height ? 0.58 : 0.5), w, h);
+    return true;
+  }
+
+  function pintar() {
+    const i = modulo(Math.round(indice), giro.cuadros);
+    // El dia se pinta siempre; la noche, en cuanto tenga el cuadro. Asi el
+    // fundido encuentra las dos capas en la misma posicion.
+    for (const e of ["dia", "noche"]) {
+      if (pintado[e] !== i && dibujar(e, i)) pintado[e] = i;
+    }
+    const grados = modulo(giro.inicio_grados + 360 * i / giro.cuadros, 360);
+    // La camara esta en ese rumbo: desde 270 se ve la fachada sur, desde 90 la norte.
+    const caras = [[270, "Fachada sur · acceso"], [0, "Fachada oriente"], [90, "Fachada norte"],
+                   [180, "Fachada poniente"]];
+    let mejor = caras[0], dist = 999;
+    for (const c of caras) {
+      const d = Math.min(Math.abs(grados - c[0]), 360 - Math.abs(grados - c[0]));
+      if (d < dist) { dist = d; mejor = c; }
+    }
+    const esquina = dist > 28;
+    caraNombre.textContent = esquina ? "Esquina · " + mejor[1].split(" · ")[0].toLowerCase() : mejor[1];
+  }
+
+  // --- carga: el primer cuadro enseguida, el resto en orden alterno ---------
+  function cargar(e, alTerminar) {
+    const n = giro.cuadros;
+    let hechos = 0;
+    const orden = [];
+    for (let k = 0; k < n; k++) orden.push(k % 2 ? n - (k + 1) / 2 : k / 2);   // 0, n-1, 1, n-2...
+    let siguiente = 0;
+    const pedir = () => {
+      if (siguiente >= orden.length) return;
+      const i = orden[siguiente++];
+      const img = new Image();
+      img.decoding = "async";
+      img.onload = img.onerror = () => {
+        hechos++;
+        if (e === "dia") carga.style.width = (100 * hechos / n) + "%";
+        pintado[e] = -1;
+        pintar();
+        if (hechos === n) alTerminar && alTerminar(); else pedir();
+      };
+      img.src = nombre(e, i);
+      imagenes[e][i] = img;
+    };
+    for (let k = 0; k < 6; k++) pedir();
+  }
+
+  // --- giro: arrastre, inercia y paseo ---------------------------------------
+  let arrastre = null;
+  const cuadrosPorPixel = () => giro.cuadros / (escena.clientWidth * 1.15);
+
+  escena.addEventListener("pointerdown", (ev) => {
+    escena.setPointerCapture(ev.pointerId);
+    arrastre = { x: ev.clientX, t: performance.now() };
+    velocidad = 0;
+    paseo = false;
+    escena.classList.add("agarrando");
+    document.body.classList.add("tocado");
+  });
+  escena.addEventListener("pointermove", (ev) => {
+    if (!arrastre) return;
+    const ahora = performance.now();
+    const dx = ev.clientX - arrastre.x;
+    const d = -dx * cuadrosPorPixel();
+    indice += d;
+    const dt = Math.max(1, ahora - arrastre.t) / 1000;
+    velocidad = 0.6 * velocidad + 0.4 * (d / dt);
+    arrastre = { x: ev.clientX, t: ahora };
+    pintar();
+  });
+  const soltar = () => { arrastre = null; escena.classList.remove("agarrando"); };
+  escena.addEventListener("pointerup", soltar);
+  escena.addEventListener("pointercancel", soltar);
+
+  window.addEventListener("keydown", (ev) => {
+    if (ev.key === "ArrowLeft" || ev.key === "ArrowRight") {
+      paseo = false; velocidad = 0;
+      indice += ev.key === "ArrowRight" ? 1 : -1;
+      document.body.classList.add("tocado");
+      pintar();
+    } else if (ev.key.toLowerCase() === "n") {
+      poner(estado === "dia" ? "noche" : "dia");
+    }
+  });
+
+  let antes = performance.now();
+  function latido(ahora) {
+    const dt = Math.min(0.05, (ahora - antes) / 1000);
+    antes = ahora;
+    if (!arrastre) {
+      if (paseo) {
+        indice += 2.2 * dt;                         // una vuelta en unos 22 s
+      } else if (Math.abs(velocidad) > 0.05) {
+        indice += velocidad * dt;
+        velocidad *= Math.pow(0.04, dt);             // se frena en algo mas de un segundo
+      }
+      pintar();
+    }
+    requestAnimationFrame(latido);
+  }
+
+  // --- dia y noche ------------------------------------------------------------
+  const botones = { dia: document.getElementById("btn-dia"), noche: document.getElementById("btn-noche") };
+  let nocheCargada = false;
+  function poner(e) {
+    estado = e;
+    if (e === "noche" && !nocheCargada) { nocheCargada = true; cargar("noche"); }
+    document.body.classList.toggle("de-noche", e === "noche");
+    botones.dia.setAttribute("aria-pressed", String(e === "dia"));
+    botones.noche.setAttribute("aria-pressed", String(e === "noche"));
+  }
+  botones.dia.addEventListener("click", () => poner("dia"));
+  botones.noche.addEventListener("click", () => poner("noche"));
+
+  // --- arranque -----------------------------------------------------------------
+  fetch(CARPETA + "giro.json").then((r) => r.ok ? r.json() : null).catch(() => null).then((j) => {
+    if (j && j.cuadros) giro = Object.assign(giro, j);
+    window.addEventListener("resize", ajustar);
+    ajustar();
+    cargar("dia", () => {
+      document.body.classList.add("listo");
+      // La noche se trae en segundo plano, para que el primer cambio no espere.
+      if (!nocheCargada) { nocheCargada = true; cargar("noche"); }
+    });
+    requestAnimationFrame(latido);
+  });
+
+  // Para pruebas desde la consola o un script.
+  window.__giro = { poner, ir: (i) => { paseo = false; velocidad = 0; indice = i; pintar(); },
+                    estado: () => ({ indice: modulo(Math.round(indice), giro.cuadros), estado,
+                                     cuadros: giro.cuadros, pintado: Object.assign({}, pintado) }) };
+})();
+</script>
+</body>
+</html>

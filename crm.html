@@ -1,0 +1,581 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CRM · Panel de ventas (demostración)</title>
+<style>
+  :root { --fondo: #0d1220; --panel: #151c2e; --borde: #26304a; --tinta: #eef1f7; --suave: #93a0bd;
+    --acento: #e0b073; --ok: #57c58a; --reserva: #e3b34a; --venta: #8b94a9; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fondo); color: var(--tinta); font-size: 14px;
+    font-family: "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif; }
+  button, select, input { font: inherit; color: inherit; }
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; padding: 16px clamp(14px, 3vw, 32px);
+    border-bottom: 1px solid var(--borde); position: sticky; top: 0; background: rgba(13, 18, 32, .94);
+    backdrop-filter: blur(10px); z-index: 5; }
+  header h1 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: .01em; }
+  header h1 small { display: block; font-size: 11px; font-weight: 400; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--suave); margin-top: 2px; }
+  .conexion { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px;
+    border: 1px solid var(--borde); font-size: 12px; color: var(--suave); }
+  .conexion i { width: 8px; height: 8px; border-radius: 50%; background: #c0504d; }
+  .conexion.viva i { background: var(--ok); box-shadow: 0 0 0 0 rgba(87, 197, 138, .6); animation: pulso 2s infinite; }
+  @keyframes pulso { 70% { box-shadow: 0 0 0 8px rgba(87, 197, 138, 0); } 100% { box-shadow: 0 0 0 0 rgba(87, 197, 138, 0); } }
+  .hueco { flex: 1; }
+  .btn { padding: 8px 14px; border-radius: 6px; border: 1px solid var(--borde); background: var(--panel); cursor: pointer;
+    transition: border-color 160ms ease, background 160ms ease; }
+  .btn:hover, .btn:focus-visible { border-color: var(--acento); outline: none; }
+  .btn.encendido { background: var(--acento); border-color: var(--acento); color: #17120a; font-weight: 600; }
+  a.btn { text-decoration: none; color: var(--tinta); }
+
+  main { padding: 18px clamp(14px, 3vw, 32px) 40px; display: grid; gap: 18px;
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 340px); align-items: start; }
+  main[hidden] { display: none; }
+  /* Dentro del showroom (`?dentro=1`) el titulo y los enlaces de salida ya los pone el. */
+  body.dentro .fuera, body.dentro header > h1 { display: none; }
+  .kpis { grid-column: 1 / -1; display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  .kpi { background: var(--panel); border: 1px solid var(--borde); border-radius: 10px; padding: 14px 16px; }
+  .kpi span { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--suave); }
+  .kpi b { display: block; margin-top: 6px; font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .kpi.d b { color: var(--ok); } .kpi.r b { color: var(--reserva); } .kpi.v b { color: var(--tinta); }
+  .kpi small { color: var(--suave); }
+
+  .caja { background: var(--panel); border: 1px solid var(--borde); border-radius: 10px; overflow: hidden; }
+  .caja > h2 { margin: 0; padding: 12px 16px; font-size: 13px; font-weight: 600; letter-spacing: .06em;
+    border-bottom: 1px solid var(--borde); display: flex; align-items: center; gap: 12px; }
+  .filtros { display: flex; gap: 6px; margin-left: auto; flex-wrap: wrap; }
+  .filtros button { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--borde); background: transparent;
+    font-size: 12px; cursor: pointer; color: var(--suave); }
+  .filtros button[aria-pressed="true"] { border-color: var(--acento); color: var(--tinta); }
+  .tabla { max-height: 68vh; overflow: auto; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th { position: sticky; top: 0; background: var(--panel); text-align: left; font-size: 11px; font-weight: 500;
+    letter-spacing: .12em; text-transform: uppercase; color: var(--suave); padding: 9px 12px; border-bottom: 1px solid var(--borde); }
+  td { padding: 8px 12px; border-bottom: 1px solid rgba(38, 48, 74, .6); white-space: nowrap; }
+  tr.recien td { animation: destello 1.8s ease; }
+  @keyframes destello { from { background: rgba(224, 176, 115, .28); } to { background: transparent; } }
+  .pastilla { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+  .pastilla.disponible { background: rgba(87, 197, 138, .16); color: var(--ok); }
+  .pastilla.apartado { background: rgba(227, 179, 74, .16); color: var(--reserva); }
+  .pastilla.vendido { background: rgba(139, 148, 169, .18); color: var(--venta); }
+  td .acc { display: flex; gap: 5px; }
+  td .acc button { padding: 3px 9px; border-radius: 5px; border: 1px solid var(--borde); background: transparent; cursor: pointer; font-size: 12px; }
+  td .acc button:hover:not(:disabled) { border-color: var(--acento); }
+  td .acc button:disabled { opacity: .3; cursor: default; }
+  .cliente { color: var(--suave); max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
+
+  #eventos { list-style: none; margin: 0; padding: 0; max-height: 68vh; overflow: auto; }
+  #eventos li { padding: 10px 16px; border-bottom: 1px solid rgba(38, 48, 74, .6); animation: entra 400ms ease; }
+  @keyframes entra { from { opacity: 0; transform: translateY(-6px); } }
+  #eventos b { font-weight: 600; }
+  #eventos small { display: block; color: var(--suave); margin-top: 2px; }
+  #eventos .vacio { color: var(--suave); }
+  #interesados { list-style: none; margin: 0; padding: 0; max-height: 44vh; overflow: auto; }
+  #interesados li { display: grid; grid-template-columns: 1fr auto; gap: 2px 14px; padding: 10px 16px;
+    border-bottom: 1px solid rgba(38, 48, 74, .6); animation: entra 400ms ease; }
+  #interesados small { color: var(--suave); }
+  #interesados .u { text-align: right; font-weight: 600; }
+  #interesados .vacio, #consultas .vacio { display: block; padding: 12px 16px; color: var(--suave); }
+  #consultas { list-style: none; margin: 0; padding: 6px 0; }
+  #consultas li { display: grid; grid-template-columns: 54px 1fr 34px; gap: 10px; align-items: center; padding: 7px 16px;
+    font-variant-numeric: tabular-nums; }
+  #consultas .barra { height: 8px; border-radius: 4px; background: rgba(38, 48, 74, .8); overflow: hidden; }
+  #consultas .barra i { display: block; height: 100%; border-radius: 4px; background: var(--acento); transition: width 400ms ease-out; }
+  #consultas li span:last-child { text-align: right; color: var(--suave); }
+  /* --- cartera ------------------------------------------------------------------- */
+  .vistas { display: flex; gap: 4px; padding: 3px; border-radius: 8px; border: 1px solid var(--borde); }
+  .vistas button { padding: 6px 14px; border-radius: 6px; border: 0; background: transparent; cursor: pointer; color: var(--suave); }
+  .vistas button[aria-pressed="true"] { background: var(--acento); color: #17120a; font-weight: 600; }
+  .kpi.m b { color: #e58a78; }
+  .pastilla.mora { background: rgba(229, 138, 120, .16); color: #e58a78; }
+  .pastilla.aldia { background: rgba(87, 197, 138, .16); color: var(--ok); }
+  .pastilla.paz, .pastilla.pagada { background: rgba(139, 148, 169, .18); color: var(--venta); }
+  .pastilla.vencida { background: rgba(229, 138, 120, .16); color: #e58a78; }
+  .pastilla.pendiente { background: rgba(227, 179, 74, .14); color: var(--reserva); }
+  td.n, th.n { text-align: right; }
+  #f-cartera-filas tr { cursor: pointer; }
+  #f-cartera-filas tr:hover td, #f-cartera-filas tr.abierta td { background: rgba(224, 176, 115, .08); }
+  .lateral { display: grid; gap: 18px; }
+  .barras { list-style: none; margin: 0; padding: 6px 0; }
+  .barras li { display: grid; grid-template-columns: 78px 1fr 74px; gap: 10px; align-items: center; padding: 7px 16px;
+    font-variant-numeric: tabular-nums; font-size: 13px; }
+  .barras .barra { height: 8px; border-radius: 4px; background: rgba(38, 48, 74, .8); overflow: hidden; }
+  .barras .barra i { display: block; height: 100%; border-radius: 4px; background: var(--acento); transition: width 400ms ease-out; }
+  .barras li.roja .barra i { background: #e58a78; }
+  .barras li span:last-child { text-align: right; color: var(--suave); }
+  .lista { list-style: none; margin: 0; padding: 0; max-height: 34vh; overflow: auto; }
+  .lista li { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 9px 16px; border-bottom: 1px solid rgba(38, 48, 74, .6); }
+  .lista small { color: var(--suave); }
+  .lista .vacio { display: block; color: var(--suave); }
+  #cuenta { position: fixed; top: 0; right: 0; bottom: 0; width: min(560px, 100%); z-index: 20; overflow: auto;
+    background: #111828; border-left: 1px solid var(--borde); box-shadow: -24px 0 60px rgba(0, 0, 0, .5);
+    transform: translateX(104%); transition: transform 320ms ease-out; }
+  #cuenta.abierta { transform: none; }
+  #cuenta header { position: sticky; top: 0; background: #111828; }
+  #cuenta .dentro { padding: 16px clamp(14px, 3vw, 22px) 30px; display: grid; gap: 18px; }
+  #cuenta h3 { margin: 0 0 8px; font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--suave); }
+  #cuenta { overflow-x: hidden; }
+  #cuenta .dentro > * { min-width: 0; }
+  .cifras { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .cifras div { background: var(--panel); border: 1px solid var(--borde); border-radius: 8px; padding: 10px 12px; }
+  .cifras span { display: block; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--suave); }
+  .cifras b { display: block; margin-top: 4px; font-size: 15px; font-variant-numeric: tabular-nums; }
+  .cifras .mal b { color: #e58a78; }
+  #f-abono { display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: 8px; }
+  #f-abono input, #f-abono select { padding: 8px 10px; border-radius: 6px; border: 1px solid var(--borde); background: var(--panel); min-width: 0; }
+  #f-abono .ancho { grid-column: 1 / -1; }
+  #f-abono .rapidos { grid-column: 1 / -1; display: flex; gap: 6px; flex-wrap: wrap; }
+  #f-abono .rapidos button { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--borde); background: transparent; cursor: pointer; font-size: 12px; color: var(--suave); }
+  #f-abono .rapidos button:hover { border-color: var(--acento); color: var(--tinta); }
+  #cuenta table td, #cuenta table th { padding: 7px 8px; font-size: 13px; position: static; }
+  #cuenta td.c { white-space: normal; }
+  .anular { padding: 2px 8px; border-radius: 5px; border: 1px solid var(--borde); background: transparent; cursor: pointer; font-size: 12px; }
+  .anular:hover { border-color: #e58a78; }
+  .aviso { grid-column: 1 / -1; color: var(--suave); font-size: 12px; line-height: 1.5; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>CRM · Panel de ventas<small id="proyecto">Demostración</small></h1>
+  <div class="conexion" id="conexion"><i></i><span id="conexion-txt">Conectando…</span></div>
+  <div class="vistas" id="vistas" role="group" aria-label="Sección del panel">
+    <button data-v="ventas" aria-pressed="true">Ventas</button>
+    <button data-v="cartera" aria-pressed="false">Cartera</button>
+  </div>
+  <div class="hueco"></div>
+  <button class="btn" id="simular" aria-pressed="false">▶ Simular actividad</button>
+  <button class="btn" id="reiniciar">Reiniciar demo</button>
+  <a class="btn fuera" href="./" target="_blank" rel="noopener">Abrir showroom ↗</a>
+  <a class="btn fuera" href="./?modo=sala" target="_blank" rel="noopener">Modo sala ↗</a>
+</header>
+
+<main id="v-ventas">
+  <section class="kpis">
+    <div class="kpi d"><span>Disponibles</span><b id="k-d">–</b><small id="k-dv"></small></div>
+    <div class="kpi r"><span>Reservadas</span><b id="k-r">–</b><small id="k-rv"></small></div>
+    <div class="kpi v"><span>Vendidas</span><b id="k-v">–</b><small id="k-vv"></small></div>
+    <div class="kpi"><span>Avance de ventas</span><b id="k-p">–</b><small>vendidas sobre el total</small></div>
+    <div class="kpi"><span>Interesados</span><b id="k-i">–</b><small id="k-iv"></small></div>
+  </section>
+
+  <section class="caja">
+    <h2>Inventario
+      <div class="filtros" id="filtros" role="group" aria-label="Filtrar por estado">
+        <button data-f="todas" aria-pressed="true">Todas</button>
+        <button data-f="disponible" aria-pressed="false">Disponibles</button>
+        <button data-f="apartado" aria-pressed="false">Reservadas</button>
+        <button data-f="vendido" aria-pressed="false">Vendidas</button>
+      </div>
+    </h2>
+    <div class="tabla">
+      <table>
+        <thead><tr><th>Unidad</th><th>Piso</th><th>Tipología</th><th>Precio</th><th>Estado</th><th>Cliente</th><th>Asesor</th><th>Acciones</th></tr></thead>
+        <tbody id="filas"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="caja">
+    <h2>Actividad en vivo</h2>
+    <ul id="eventos"><li class="vacio">Aún no hay movimientos. Cambia el estado de una unidad o pulsa «Simular actividad».</li></ul>
+  </section>
+
+  <section class="caja">
+    <h2>Interesados</h2>
+    <ul id="interesados"></ul>
+  </section>
+
+  <section class="caja">
+    <h2>Unidades más consultadas</h2>
+    <ul id="consultas"></ul>
+  </section>
+
+  <p class="aviso">Panel de demostración: simula el CRM de una sala de ventas. Los clientes y asesores son ficticios y los
+    cambios no se guardan en ningún sistema real. Lo que cambie aquí aparece al instante en el showroom.</p>
+</main>
+
+<main id="v-cartera" hidden>
+  <section class="kpis">
+    <div class="kpi"><span>Valor negociado</span><b id="c-valor">–</b><small id="c-valor-s"></small></div>
+    <div class="kpi d"><span>Recaudado</span><b id="c-pagado">–</b><small id="c-pagado-s"></small></div>
+    <div class="kpi"><span>Por cobrar</span><b id="c-saldo">–</b><small id="c-saldo-s"></small></div>
+    <div class="kpi m"><span>Cartera vencida</span><b id="c-vencido">–</b><small id="c-vencido-s"></small></div>
+    <div class="kpi m"><span>Intereses de mora</span><b id="c-interes">–</b><small id="c-interes-s"></small></div>
+  </section>
+
+  <section class="caja">
+    <h2>Cartera por cliente
+      <div class="filtros" id="f-cartera" role="group" aria-label="Filtrar la cartera">
+        <button data-f="todos" aria-pressed="true">Todos</button>
+        <button data-f="mora" aria-pressed="false">En mora</button>
+        <button data-f="aldia" aria-pressed="false">Al día</button>
+        <button data-f="paz" aria-pressed="false">Paz y salvo</button>
+        <button id="exportar">Exportar CSV</button>
+      </div>
+    </h2>
+    <div class="tabla">
+      <table>
+        <thead><tr><th>Unidad</th><th>Cliente</th><th class="n">Valor</th><th class="n">Pagado</th><th class="n">Saldo</th>
+          <th class="n">Vencido</th><th class="n">Días mora</th><th>Próximo vencimiento</th><th>Estado</th></tr></thead>
+        <tbody id="f-cartera-filas"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="lateral">
+    <section class="caja"><h2>Edades de cartera</h2><ul class="barras" id="edades"></ul></section>
+    <section class="caja"><h2>Recaudo por mes</h2><ul class="barras" id="recaudo"></ul></section>
+    <section class="caja"><h2>Vencen en los próximos 30 días</h2><ul class="lista" id="proximos"></ul></section>
+  </div>
+
+  <p class="aviso">Cartera de demostración. El plan de pagos de cada negocio sale del cotizador (cuota inicial, meses y separación);
+    los pagos anteriores de las unidades que ya venían reservadas o vendidas son ficticios, y la mora se liquida con una tasa
+    supuesta del <span id="tasa-mora"></span> mensual. No reemplaza un sistema contable.</p>
+</main>
+
+<aside id="cuenta" aria-label="Estado de cuenta" inert>
+  <header>
+    <h1 id="q-unidad">Estado de cuenta<small id="q-cliente"></small></h1>
+    <div class="hueco"></div>
+    <button class="btn" id="q-cerrar">Cerrar</button>
+  </header>
+  <div class="dentro">
+    <div class="cifras" id="q-cifras"></div>
+    <section>
+      <h3>Registrar abono</h3>
+      <form id="f-abono">
+        <input name="valor" type="number" min="1" step="1" placeholder="Valor en pesos" required>
+        <select name="medio"></select>
+        <input name="nota" class="ancho" maxlength="120" placeholder="Nota (opcional): recibo, referencia…">
+        <div class="rapidos" id="q-rapidos"></div>
+        <button class="btn encendido ancho" type="submit">Registrar abono</button>
+      </form>
+    </section>
+    <section><h3>Plan de pagos</h3><table><thead><tr><th>Concepto</th><th>Vence</th><th class="n">Valor</th><th class="n">Saldo</th><th>Estado</th></tr></thead><tbody id="q-cuotas"></tbody></table></section>
+    <section><h3>Abonos recibidos</h3><table><thead><tr><th>Fecha</th><th class="n">Valor</th><th>Medio</th><th></th></tr></thead><tbody id="q-abonos"></tbody></table></section>
+  </div>
+</aside>
+
+<script src="crm.js"></script>
+<script src="cartera.js"></script>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  document.body.classList.toggle("dentro", new URLSearchParams(location.search).has("dentro"));
+  const NOMBRE = { estudio: "Aparta-estudio", dos: "Dos alcobas", penthouse: "Penthouse" };
+  const ESTADO = { disponible: "Disponible", apartado: "Reservada", vendido: "Vendida" };
+  const VERBO = { disponible: "liberada", apartado: "reservada", vendido: "vendida" };
+  const CLIENTES = ["Laura M.", "Andrés P.", "Camila R.", "Julián T.", "Valentina G.", "Santiago L.", "Mariana C.",
+                    "Felipe O.", "Daniela S.", "Nicolás V.", "Paula A.", "Sebastián H.", "Carolina B.", "Mateo D."];
+  const ASESORES = ["Ana Torres", "Carlos Rueda", "Diana Peña", "Jorge Ávila"];
+  const pesos = (v) => "$" + Math.round(v / 1e6).toLocaleString("es-CO") + " M";
+  const hora = (ms) => new Date(ms).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const azar = (lista) => lista[Math.floor(Math.random() * lista.length)];
+  let BASE = {}, filtro = "todas";
+
+  function kpis() {
+    const suma = { disponible: [0, 0], apartado: [0, 0], vendido: [0, 0] };
+    for (const [n, u] of Object.entries(CRM.estado.unidades)) {
+      suma[u.estado][0]++;
+      suma[u.estado][1] += BASE[n].precio;
+    }
+    const total = Object.keys(BASE).length;
+    $("k-d").textContent = suma.disponible[0]; $("k-dv").textContent = pesos(suma.disponible[1]) + " en inventario";
+    $("k-r").textContent = suma.apartado[0];  $("k-rv").textContent = pesos(suma.apartado[1]) + " en reserva";
+    $("k-v").textContent = suma.vendido[0];   $("k-vv").textContent = pesos(suma.vendido[1]) + " vendidos";
+    $("k-p").textContent = Math.round(100 * suma.vendido[0] / total) + " %";
+  }
+
+  function fila(n) {
+    const b = BASE[n], u = CRM.estado.unidades[n];
+    const g = Cartera.negocio(n, b, u, null, FIN);      // el titular es el mismo que ve la cartera
+    const tr = document.createElement("tr");
+    tr.dataset.n = n;
+    tr.hidden = filtro !== "todas" && filtro !== u.estado;
+    tr.innerHTML =
+      `<td><b>${n}</b></td><td>${b.piso}</td><td>${NOMBRE[b.tipologia]}</td><td>${pesos(b.precio)}</td>` +
+      `<td><span class="pastilla ${u.estado}">${ESTADO[u.estado]}</span></td>` +
+      `<td class="cliente">${limpio(g ? g.cliente : "—")}</td><td class="cliente">${limpio(g ? g.asesor : "—")}</td>` +
+      `<td><div class="acc">` +
+      `<button data-a="apartado" ${u.estado !== "disponible" ? "disabled" : ""}>Reservar</button>` +
+      `<button data-a="vendido" ${u.estado === "vendido" ? "disabled" : ""}>Vender</button>` +
+      `<button data-a="disponible" ${u.estado === "disponible" ? "disabled" : ""}>Liberar</button></div></td>`;
+    return tr;
+  }
+
+  function pintarTabla() {
+    const cuerpo = $("filas");
+    cuerpo.replaceChildren(...Object.keys(BASE).map(fila));
+  }
+
+  function pintarFila(n, destello) {
+    const vieja = $("filas").querySelector(`tr[data-n="${CSS.escape(n)}"]`), nueva = fila(n);
+    if (destello) nueva.classList.add("recien");
+    if (vieja) vieja.replaceWith(nueva);
+  }
+
+  function anotar(ev) {
+    const lista = $("eventos");
+    lista.querySelector(".vacio")?.remove();
+    const li = document.createElement("li");
+    const quien = ev.cliente ? ` · ${ev.cliente}` : "";
+    const por = ev.origen === "showroom" ? "desde el showroom" : ev.origen === "simulador" ? "actividad simulada"
+              : (ev.asesor ? "por " + ev.asesor : "desde el panel");
+    li.innerHTML = `<b>${ev.numero}</b> ${VERBO[ev.estado]}${quien}<small>${hora(ev.cuando)} · ${por}</small>`;
+    lista.prepend(li);
+    while (lista.children.length > 60) lista.lastChild.remove();
+  }
+
+  const limpio = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const ORIGEN = { showroom: "desde el showroom", sala: "en la sala de ventas", simulador: "actividad simulada" };
+
+  function pintarInteresados() {
+    const lista = CRM.estado.interesados, vistas = Object.values(CRM.estado.vistas).reduce((a, b) => a + b, 0);
+    $("k-i").textContent = lista.length;
+    $("k-iv").textContent = `${vistas} ${vistas === 1 ? "consulta" : "consultas"} de unidades`;
+    $("interesados").innerHTML = lista.length ? lista.slice(0, 40).map((x) =>
+      `<li><b>${limpio(x.nombre)}</b><span class="u">${limpio(x.numero)}</span>` +
+      `<small>${limpio(x.telefono)}${x.plan ? " · " + limpio(x.plan) : ""}</small>` +
+      `<small>${hora(x.cuando)} · ${ORIGEN[x.origen] || "desde el showroom"}</small></li>`).join("")
+      : '<li class="vacio">Nadie ha dejado sus datos todavía. Llegan desde el cotizador del showroom.</li>';
+  }
+
+  function pintarConsultas() {
+    const orden = Object.entries(CRM.estado.vistas).sort((a, b) => b[1] - a[1]).slice(0, 8);
+    const tope = orden.length ? orden[0][1] : 1;
+    $("consultas").innerHTML = orden.length ? orden.map(([n, v]) =>
+      `<li><b>${n}</b><div class="barra"><i style="width:${Math.round(100 * v / tope)}%"></i></div><span>${v}</span></li>`).join("")
+      : '<li class="vacio">Aún no se ha abierto ninguna ficha en el showroom.</li>';
+  }
+
+  // --- cartera: pagos, abonos y mora ------------------------------------------------
+  let FIN = { inicial: 30, meses: 24, separacion: 10e6 }, filtroCartera = "todos", cuentaAbierta = null;
+  const plata = (v) => "$" + Math.round(v).toLocaleString("es-CO");
+  const fecha = (ms) => new Date(ms).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" });
+  const ETAPA = { mora: "En mora", aldia: "Al día", paz: "Paz y salvo" };
+  const CUOTA = { pagada: "Pagada", vencida: "Vencida", pendiente: "Por vencer" };
+  const negocios = () => Cartera.todos(BASE, CRM.estado, FIN);
+
+  function barras(id, filas) {
+    const tope = Math.max(1, ...filas.map((f) => f[1]));
+    $(id).innerHTML = filas.map(([nombre, v, roja]) =>
+      `<li class="${roja ? "roja" : ""}"><span>${nombre}</span><div class="barra"><i style="width:${Math.round(100 * v / tope)}%"></i></div><span>${pesos(v)}</span></li>`).join("");
+  }
+
+  function pintarCartera() {
+    if (!Object.keys(BASE).length) return;
+    const lista = negocios(), r = Cartera.resumen(lista);
+    $("c-valor").textContent = pesos(r.valor); $("c-valor-s").textContent = `${r.negocios} negocios vivos`;
+    $("c-pagado").textContent = pesos(r.pagado); $("c-pagado-s").textContent = `${r.valor ? Math.round(100 * r.pagado / r.valor) : 0} % del valor negociado`;
+    $("c-saldo").textContent = pesos(r.saldo); $("c-saldo-s").textContent = `${pesos(r.edades.porVencer)} aún no vencen`;
+    $("c-vencido").textContent = pesos(r.vencido);
+    $("c-vencido-s").textContent = `${r.enMora} ${r.enMora === 1 ? "cliente" : "clientes"} en mora`;
+    $("c-interes").textContent = plata(r.interes);
+    $("c-interes-s").textContent = "causados a hoy";
+    $("f-cartera-filas").innerHTML = lista.filter((g) => filtroCartera === "todos" || g.estado === filtroCartera).map((g) =>
+      `<tr data-n="${g.numero}" class="${g.numero === cuentaAbierta ? "abierta" : ""}"><td><b>${g.numero}</b></td><td class="cliente">${limpio(g.cliente)}</td>` +
+      `<td class="n">${pesos(g.precio)}</td><td class="n">${pesos(g.pagado)}</td><td class="n">${pesos(g.saldo)}</td>` +
+      `<td class="n">${g.vencido ? plata(g.vencido) : "—"}</td><td class="n">${g.diasMora || "—"}</td>` +
+      `<td>${g.proximo ? fecha(g.proximo.vence) + " · " + plata(g.proximo.saldo) : "—"}</td>` +
+      `<td><span class="pastilla ${g.estado}">${ETAPA[g.estado]}</span></td></tr>`).join("") ||
+      '<tr><td colspan="9" class="cliente">Ningún negocio en este estado.</td></tr>';
+    barras("edades", [["Por vencer", r.edades.porVencer], ["1 a 30 días", r.edades.d30, 1], ["31 a 60", r.edades.d60, 1],
+                      ["61 a 90", r.edades.d90, 1], ["Más de 90", r.edades.mas, 1]]);
+    barras("recaudo", r.meses.map((m) => [m.nombre, m.total]));
+    $("proximos").innerHTML = r.proximos.length ? r.proximos.slice(0, 20).map((c) =>
+      `<li><b>${c.numero} · ${limpio(c.cliente)}</b><b>${plata(c.saldo)}</b><small>${c.concepto}</small><small>${fecha(c.vence)}</small></li>`).join("")
+      : '<li class="vacio">Nada vence en los próximos 30 días.</li>';
+    if (cuentaAbierta) pintarCuenta();
+  }
+
+  function pintarCuenta() {
+    const g = Cartera.negocio(cuentaAbierta, BASE[cuentaAbierta], CRM.estado.unidades[cuentaAbierta],
+                              CRM.estado.abonos[cuentaAbierta], FIN);
+    if (!g) { cerrarCuenta(); return; }
+    $("q-unidad").firstChild.textContent = `Apartamento ${g.numero} · ${NOMBRE[g.tipologia]}`;
+    $("q-cliente").textContent = `${g.cliente} · asesor ${g.asesor} · ${ETAPA[g.estado]}`;
+    $("q-cifras").innerHTML =
+      `<div><span>Valor</span><b>${plata(g.precio)}</b></div><div><span>Pagado</span><b>${plata(g.pagado)}</b></div>` +
+      `<div><span>Saldo</span><b>${plata(g.saldo)}</b></div>` +
+      `<div class="${g.vencido ? "mal" : ""}"><span>Vencido</span><b>${plata(g.vencido)}</b></div>` +
+      `<div class="${g.diasMora ? "mal" : ""}"><span>Días de mora</span><b>${g.diasMora}</b></div>` +
+      `<div class="${g.interes ? "mal" : ""}"><span>Interés de mora</span><b>${plata(g.interes)}</b></div>`;
+    const rapidos = [];
+    if (g.vencido) rapidos.push(["Lo vencido", g.vencido]);
+    if (g.vencido && g.interes) rapidos.push(["Vencido + mora", g.vencido + g.interes]);
+    if (g.proximo) rapidos.push(["Próxima cuota", g.proximo.saldo]);
+    if (g.saldo) rapidos.push(["Saldo total", g.saldo]);
+    $("q-rapidos").innerHTML = rapidos.map(([t, v]) => `<button type="button" data-v="${Math.round(v)}">${t} · ${plata(v)}</button>`).join("");
+    $("f-abono").querySelector("button[type=submit]").disabled = g.saldo <= 0;
+    $("q-cuotas").innerHTML = g.cuotas.map((c) =>
+      `<tr><td class="c">${c.concepto}</td><td>${fecha(c.vence)}</td><td class="n">${plata(c.valor)}</td><td class="n">${c.saldo ? plata(c.saldo) : "—"}</td>` +
+      `<td><span class="pastilla ${c.estado}">${CUOTA[c.estado]}${c.dias ? " · " + c.dias + " d" : ""}</span></td></tr>`).join("");
+    $("q-abonos").innerHTML = g.abonos.length ? [...g.abonos].reverse().map((a) =>
+      `<tr><td>${fecha(a.cuando)}</td><td class="n">${plata(a.valor)}</td><td class="c">${limpio(a.medio)}${a.nota ? " · " + limpio(a.nota) : ""}</td>` +
+      `<td>${a.historico ? "" : `<button class="anular" data-id="${a.id}">Anular</button>`}</td></tr>`).join("")
+      : '<tr><td colspan="4" class="cliente">Sin abonos todavía: la separación está por cobrar.</td></tr>';
+  }
+
+  function abrirCuenta(n) {
+    cuentaAbierta = n;
+    $("f-abono").reset();
+    pintarCartera();
+    $("cuenta").inert = false;
+    $("cuenta").classList.add("abierta");
+  }
+  function cerrarCuenta() {
+    cuentaAbierta = null;
+    $("cuenta").classList.remove("abierta");
+    $("cuenta").inert = true;
+    for (const tr of $("f-cartera-filas").children) tr.classList.remove("abierta");
+  }
+
+  $("f-abono").medio.innerHTML = Cartera.MEDIOS.map((m) => `<option>${m}</option>`).join("");
+  $("tasa-mora").textContent = (Cartera.TASA_MORA_MENSUAL * 100).toLocaleString("es-CO") + " %";
+  $("f-cartera-filas").addEventListener("click", (e) => { const tr = e.target.closest("tr[data-n]"); if (tr) abrirCuenta(tr.dataset.n); });
+  $("q-cerrar").addEventListener("click", cerrarCuenta);
+  window.addEventListener("keydown", (e) => { if (e.key === "Escape" && cuentaAbierta) cerrarCuenta(); });
+  $("q-rapidos").addEventListener("click", (e) => { const b = e.target.closest("button[data-v]"); if (b) $("f-abono").valor.value = b.dataset.v; });
+  $("f-abono").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const f = e.target, valor = Math.round(Number(f.valor.value));
+    if (!(valor > 0) || !cuentaAbierta) return;
+    await CRM.abonar(cuentaAbierta, { valor, medio: f.medio.value, nota: f.nota.value.trim() });
+    f.reset();
+  });
+  $("q-abonos").addEventListener("click", (e) => {
+    const b = e.target.closest(".anular");
+    if (b && confirm("¿Anular este abono? La cartera se recalcula.")) CRM.anularAbono(cuentaAbierta, Number(b.dataset.id));
+  });
+  $("f-cartera").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-f]");
+    if (!b) return;
+    filtroCartera = b.dataset.f;
+    for (const x of $("f-cartera").querySelectorAll("button[data-f]")) x.setAttribute("aria-pressed", String(x === b));
+    pintarCartera();
+  });
+  $("exportar").addEventListener("click", () => {
+    const celda = (v) => `"${String(v).replace(/"/g, '""')}"`;
+    const filas = [["Unidad", "Cliente", "Asesor", "Etapa", "Valor", "Pagado", "Saldo", "Vencido", "Dias de mora", "Interes de mora", "Proximo vencimiento", "Estado"]]
+      .concat(negocios().map((g) => [g.numero, g.cliente, g.asesor, ESTADO[g.etapa], g.precio, g.pagado, g.saldo, g.vencido, g.diasMora,
+        g.interes, g.proximo ? new Date(g.proximo.vence).toISOString().slice(0, 10) : "", ETAPA[g.estado]]));
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob(["﻿" + filas.map((f) => f.map(celda).join(";")).join("\r\n")], { type: "text/csv;charset=utf-8" }));
+    a.download = "cartera-demostracion.csv";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  });
+  $("vistas").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-v]");
+    if (!b) return;
+    for (const x of $("vistas").children) x.setAttribute("aria-pressed", String(x === b));
+    $("v-ventas").hidden = b.dataset.v !== "ventas";
+    $("v-cartera").hidden = b.dataset.v !== "cartera";
+    if (b.dataset.v !== "cartera") cerrarCuenta(); else pintarCartera();
+    history.replaceState(null, "", b.dataset.v === "cartera" ? "#cartera" : location.pathname + location.search);
+  });
+
+  $("filas").addEventListener("click", (e) => {
+    const boton = e.target.closest("button[data-a]");
+    if (!boton || boton.disabled) return;
+    const n = boton.closest("tr").dataset.n, nuevo = boton.dataset.a, u = CRM.estado.unidades[n];
+    CRM.cambiar(n, nuevo, { cliente: u.cliente || azar(CLIENTES), asesor: u.asesor || azar(ASESORES), origen: "crm" });
+  });
+
+  $("filtros").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-f]");
+    if (!b) return;
+    filtro = b.dataset.f;
+    for (const x of $("filtros").children) x.setAttribute("aria-pressed", String(x === b));
+    pintarTabla();
+  });
+
+  // --- actividad simulada: lo que haria una sala de ventas en una tarde movida ----
+  let reloj = null;
+  function unMovimiento() {
+    const u = CRM.estado.unidades;
+    const libres = Object.keys(u).filter((n) => u[n].estado === "disponible");
+    const reservadas = Object.keys(u).filter((n) => u[n].estado === "apartado");
+    const tiro = Math.random();
+    if (reservadas.length && (tiro < 0.30 || !libres.length)) {
+      const n = azar(reservadas);
+      // Una reserva casi siempre se cierra; a veces vence y la unidad vuelve a estar libre.
+      CRM.cambiar(n, Math.random() < 0.78 ? "vendido" : "disponible",
+                  { cliente: u[n].cliente || azar(CLIENTES), asesor: u[n].asesor || azar(ASESORES), origen: "simulador" });
+    } else if (libres.length) {
+      CRM.cambiar(azar(libres), "apartado", { cliente: azar(CLIENTES), asesor: azar(ASESORES), origen: "simulador" });
+    }
+    // De vez en cuando entra un pago: alguien se pone al dia o adelanta su cuota.
+    if (Math.random() < 0.35) {
+      const deben = negocios().filter((g) => g.saldo > 0);
+      if (deben.length) {
+        const g = azar(deben), cuota = g.cuotas.find((c) => c.saldo > 0);
+        CRM.abonar(g.numero, { valor: cuota.saldo, medio: azar(Cartera.MEDIOS), nota: "Actividad simulada" });
+      }
+    }
+    // Y, mientras tanto, gente mirando fichas y alguno que deja sus datos.
+    const todas = Object.keys(u);
+    for (let k = 0; k < 1 + Math.floor(Math.random() * 3); k++) CRM.ver(azar(libres.length ? libres : todas));
+    if (libres.length && Math.random() < 0.25) {
+      CRM.interesado({ numero: azar(libres), nombre: azar(CLIENTES), plan: "30 % inicial · crédito a 15 años",
+                       telefono: "3" + String(Math.floor(Math.random() * 100)).padStart(2, "0") + " ••• ••" +
+                                 String(Math.floor(Math.random() * 100)).padStart(2, "0"), origen: "simulador" });
+    }
+    reloj = setTimeout(unMovimiento, 3500 + Math.random() * 3500);
+  }
+  $("simular").addEventListener("click", () => {
+    const b = $("simular");
+    if (reloj) { clearTimeout(reloj); reloj = null; } else { reloj = setTimeout(unMovimiento, 600); }
+    b.classList.toggle("encendido", !!reloj);
+    b.setAttribute("aria-pressed", String(!!reloj));
+    b.textContent = reloj ? "■ Detener simulación" : "▶ Simular actividad";
+  });
+  $("reiniciar").addEventListener("click", () => {
+    if (confirm("¿Volver todas las unidades al estado inicial de la demostración?")) CRM.reiniciar(BASE);
+  });
+
+  fetch("datos.json").then((r) => r.json()).then(async (datos) => {
+    BASE = datos.unidades;
+    $("proyecto").textContent = `${datos.edificio.nombre} · ${datos.edificio.lugar} · demostración`;
+    document.title = `CRM · ${datos.edificio.nombre} (demostración)`;
+    await CRM.conectar(BASE);
+    CRM.alConectar((si, modo) => {
+      $("conexion").classList.toggle("viva", si);
+      $("conexion-txt").textContent = !si ? "Sin conexión, reintentando…"
+        : modo === "servidor" ? "En línea · sincronizado por red" : "En línea · este navegador";
+    });
+    CRM.alCambiar((ev) => {
+      if (ev.tipo === "reinicio") {
+        pintarTabla();
+        $("eventos").innerHTML = '<li class="vacio">Demo reiniciada: todas las unidades volvieron a su estado inicial.</li>';
+        pintarInteresados(); pintarConsultas(); pintarCartera();
+      } else if (ev.tipo === "abono" || ev.tipo === "abono_anulado") {
+        pintarCartera();
+        return;
+      } else if (ev.tipo === "vista") {
+        pintarConsultas(); pintarInteresados();
+        return;
+      } else if (ev.tipo === "interesado") {
+        pintarInteresados();
+        return;
+      } else {
+        pintarFila(ev.numero, true);
+        anotar(ev);
+        pintarCartera();
+      }
+      kpis();
+    });
+    pintarTabla();
+    kpis();
+    pintarInteresados(); pintarConsultas();
+    Object.assign(FIN, datos.financiacion || {});
+    pintarCartera();
+    if (location.hash === "#cartera") $("vistas").querySelector('[data-v="cartera"]').click();
+    [...CRM.estado.eventos].reverse().forEach(anotar);
+  });
+})();
+</script>
+</body>
+</html>
