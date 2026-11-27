@@ -1,6 +1,20 @@
-/* crm.js — el enlace del showroom (y del panel) con el CRM de la demostracion.
+/* crm.js — el enlace del showroom (y del panel) con el CRM.
 
-   Una sola interfaz, dos maneras de estar "en vivo":
+   Con el CRM REAL (modo "crm"): `conexion.json` trae su direccion
+   ({"crm": "http://localhost:8000"}) o la pagina se abre con `?crm=<url>`.
+   Entonces el CRM es la unica fuente de verdad y aqui no se guarda nada:
+     GET  <crm>/api/v1/unidades            foto del inventario (estado_showroom)
+     GET  <crm>/api/v1/eventos?desde=<n>   cambios en vivo (SSE: unidad, vista, interesado)
+     POST <crm>/api/v1/vistas              alguien abrio la ficha de una unidad
+     POST <crm>/api/v1/interesados         datos de quien cotiza o pide separar,
+                                           con su autorizacion de tratamiento de datos
+   El navegador NO cambia estados: separar una unidad lo confirma un asesor en
+   el panel del CRM (o un servidor con clave) y el cambio llega aqui por el flujo.
+   Si el CRM no responde, se muestra el inventario de partida como referencia,
+   sin escribir nada, y se reintenta solo.
+
+   Sin CRM configurado (`?crm=` vacio, o conexion.json sin direccion) quedan
+   los dos modos de la demostracion de siempre:
 
    - Con `scripts/servidor_showroom.py` el estado vive en el servidor y cada
      cambio llega por un flujo de eventos a todas las paginas abiertas, en
@@ -60,6 +74,7 @@ const CRM = (() => {
 
   // Lo que no cambia el estado de una unidad: una consulta o un interesado.
   async function enviar(ruta, cuerpo, local) {
+    if (modo === "crm") return null;        // cartera y abonos se registran en el panel del CRM
     if (modo === "servidor") {
       const r = await fetch(ruta, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpo) });
       return r.ok ? (await r.json()).evento : null;
@@ -73,6 +88,7 @@ const CRM = (() => {
 
   function ver(numero) {
     if (!estado.unidades[numero]) return Promise.resolve(null);
+    if (modo === "crm") return pedirCrm("/vistas", { unidad: numero, origen: "showroom" }).catch(() => null);
     return enviar("api/crm/vista", { numero },
       () => ({ tipo: "vista", numero, total: (estado.vistas[numero] || 0) + 1 })).catch(() => null);
   }
@@ -94,12 +110,87 @@ const CRM = (() => {
   function interesado(datos) {
     const nombre = String(datos.nombre || "").trim(), telefono = String(datos.telefono || "").trim();
     if (!estado.unidades[datos.numero] || !nombre || !telefono) return Promise.resolve(null);
+    if (modo === "crm") {
+      // La pantalla de la sala entra como showroom, marcada por campana.
+      const sala = datos.origen === "sala";
+      return pedirCrm("/interesados", {
+        nombre, telefono, unidad: datos.numero, plan: datos.plan || null, mensaje: datos.mensaje || null,
+        origen: "showroom", campana: sala ? "pantalla-sala" : null,
+        acepta_tratamiento_datos: datos.acepta === true,
+      });                                   // si falla, quien llama avisa: no se pierde en silencio
+    }
     return enviar("api/crm/interesado", { ...datos, nombre, telefono },
       () => ({ tipo: "interesado", id: ++serie, cuando: Date.now(), numero: datos.numero, nombre, telefono,
                plan: datos.plan || null, origen: datos.origen || "showroom" }));
   }
 
+  // ------------------------------------------------------------ CRM real
+  let urlCrm = "", flujoCrm = null, reintento = null;
+
+  async function direccionCrm() {
+    const q = new URLSearchParams(location.search);
+    if (q.has("crm")) return q.get("crm").trim().replace(/\/$/, "");
+    try {
+      const r = await fetch("conexion.json", { cache: "no-store" });
+      if (r.ok) return String((await r.json()).crm || "").trim().replace(/\/$/, "");
+    } catch (e) { /* sin fichero: demostracion */ }
+    return "";
+  }
+
+  async function pedirCrm(ruta, cuerpo) {
+    const r = await fetch(urlCrm + "/api/v1" + ruta, cuerpo === undefined ? { cache: "no-store" } : {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpo),
+    });
+    if (!r.ok) throw new Error(`El CRM respondio ${r.status}`);
+    return r.json();
+  }
+
+  const dato = (m) => { try { return JSON.parse(m.data); } catch (e) { return null; } };
+
+  async function conectarCrm(base) {
+    clearTimeout(reintento);
+    try {
+      const foto = await pedirCrm("/unidades");
+      const unidades = {};
+      for (const u of foto.unidades) unidades[u.numero] = { estado: u.estado_showroom, cliente: null, asesor: null, cuando: null };
+      const primera = !Object.keys(estado.unidades).length;
+      estado = { unidades, eventos: [], vistas: estado.vistas || {}, interesados: [], abonos: {} };
+      if (!primera) avisar({ tipo: "reinicio", estado });    // volvio la conexion: se repinta con lo vigente
+      if (flujoCrm) flujoCrm.close();
+      flujoCrm = new EventSource(`${urlCrm}/api/v1/eventos?desde=${foto.ultimo_evento || 0}`);
+      flujoCrm.onopen = () => conexion(true);
+      flujoCrm.onerror = () => conexion(false);           // el navegador se reengancha con Last-Event-ID
+      flujoCrm.addEventListener("unidad", (m) => {
+        const e = dato(m), d = e && e.datos;
+        if (!d || !estado.unidades[d.numero]) return;
+        const antes = estado.unidades[d.numero].estado;
+        if (antes === d.estado_showroom) return;
+        recibir({ tipo: "cambio", id: e.id, cuando: e.cuando, numero: d.numero, estado: d.estado_showroom, antes,
+                  cliente: null, asesor: null, origen: "crm" });
+      });
+      flujoCrm.addEventListener("vista", (m) => {
+        const e = dato(m);
+        if (e && e.datos) recibir({ tipo: "vista", numero: e.datos.numero, total: e.datos.total });
+      });
+      flujoCrm.addEventListener("interesado", (m) => {
+        const e = dato(m), d = e && e.datos;
+        if (d) recibir({ tipo: "interesado", id: e.id, cuando: e.cuando, numero: d.unidad, nombre: d.nombre,
+                         telefono: d.telefono, origen: d.origen });
+      });
+    } catch (e) {
+      if (!Object.keys(estado.unidades).length) estado = deBase(base);   // referencia, solo para mirar
+      conexion(false);
+      reintento = setTimeout(() => conectarCrm(base), 5000);
+    }
+  }
+
   async function conectar(base) {
+    urlCrm = await direccionCrm();
+    if (urlCrm) {
+      modo = "crm";
+      await conectarCrm(base);
+      return estado;
+    }
     try {
       const r = await fetch("api/crm", { cache: "no-store" });
       if (!r.ok) throw new Error("sin servidor");
@@ -130,6 +221,7 @@ const CRM = (() => {
   }
 
   async function cambiar(numero, nuevo, extra = {}) {
+    if (modo === "crm") return null;        // con el CRM real, el estado solo lo cambia el CRM
     if (!ESTADOS.includes(nuevo) || !estado.unidades[numero]) return null;
     if (modo === "servidor") {
       const r = await fetch("api/crm/cambio", { method: "POST", headers: { "Content-Type": "application/json" },
@@ -149,6 +241,7 @@ const CRM = (() => {
   }
 
   async function reiniciar(base) {
+    if (modo === "crm") return;
     if (modo === "servidor") {
       await fetch("api/crm/reiniciar", { method: "POST" });
       return;
@@ -165,6 +258,7 @@ const CRM = (() => {
     alCambiar: (f) => oyentes.push(f),
     alConectar: (f) => { deConexion.push(f); f(enLinea, modo); },
     get modo() { return modo; },
+    get urlCrm() { return urlCrm; },
     get enLinea() { return enLinea; },
     get estado() { return estado; },
     cuenta() {

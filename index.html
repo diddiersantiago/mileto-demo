@@ -1,1603 +1,446 @@
 <!doctype html>
-<html lang="es">
+<html lang="es-CO">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Mileto · Showroom</title>
-<style>
-  :root {
-    --fondo: #0a0f1a;
-    --tinta: #f4efe6;
-    --suave: rgba(244, 239, 230, .64);
-    --linea: rgba(244, 239, 230, .18);
-    --panel: rgba(10, 14, 24, .78);
-    --acento: #e0b073;
-    --entra: 900ms;               /* lo que dura meterse de una vista a la siguiente */
-    --curva: cubic-bezier(.65, 0, .35, 1);
-  }
-  * { box-sizing: border-box; }
-  html, body { height: 100%; margin: 0; background: var(--fondo); color: var(--tinta); overflow: hidden;
-    font-family: "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
-    -webkit-font-smoothing: antialiased; }
-  button { font: inherit; color: inherit; }
-  .sobre { font-size: 11px; letter-spacing: .26em; text-transform: uppercase; color: var(--suave); }
-  .serif { font-family: Georgia, "Times New Roman", serif; font-weight: 400; }
-
-  /* Tres vistas apiladas: fachada, planta y apartamento. `data-vista` en el
-     body dice cual manda; las otras se funden. */
-  .vista { position: fixed; inset: 0; opacity: 0; pointer-events: none; transition: opacity 520ms ease; }
-  body[data-vista="fachada"] #fachada,
-  body[data-vista="planta"] #planta,
-  body[data-vista="apto"] #apto,
-  body[data-vista="estancia"] #estancia { opacity: 1; pointer-events: auto; transition-delay: 380ms; }
-
-  /* --- enlace con el CRM: el indicador, los avisos y la reserva -------------------- */
-  #enlace { display: inline-flex; align-items: center; gap: 8px; margin-top: 10px; padding: 6px 12px; border-radius: 999px;
-    background: rgba(10, 14, 24, .62); border: 1px solid var(--linea); font-size: 11px; letter-spacing: .06em;
-    color: var(--suave); pointer-events: none; }
-  #enlace i { width: 8px; height: 8px; border-radius: 50%; background: #b9534f; flex: none; }
-  #enlace.vivo i { background: #57c58a; animation: pulso 2.2s infinite; }
-  @keyframes pulso { 0% { box-shadow: 0 0 0 0 rgba(87, 197, 138, .6); } 70% { box-shadow: 0 0 0 8px rgba(87, 197, 138, 0); }
-                     100% { box-shadow: 0 0 0 0 rgba(87, 197, 138, 0); } }
-  #enlace b { font-weight: 500; color: var(--tinta); }
-  #avisos { position: fixed; left: clamp(12px, 2vw, 28px); bottom: clamp(12px, 3vh, 28px); z-index: 40; display: flex;
-    flex-direction: column-reverse; gap: 8px; pointer-events: none; max-width: min(360px, calc(100vw - 24px)); }
-  .aviso { display: flex; gap: 10px; align-items: flex-start; padding: 11px 14px; border-radius: 8px;
-    background: rgba(10, 14, 24, .92); border: 1px solid var(--linea); box-shadow: 0 12px 34px rgba(0, 0, 0, .45);
-    font-size: 13px; line-height: 1.4; animation: aviso-entra 420ms var(--curva); transition: opacity 500ms ease, transform 500ms ease; }
-  .aviso.fuera { opacity: 0; transform: translateX(-14px); }
-  .aviso i { width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; flex: none; background: var(--acento); }
-  .aviso.vendido i { background: #8b94a9; } .aviso.disponible i { background: #57c58a; }
-  .aviso small { display: block; color: var(--suave); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; margin-top: 2px; }
-  @keyframes aviso-entra { from { opacity: 0; transform: translateY(14px); } }
-  /* El cambio de estado de una unidad en la planta se ve: un latido. */
-  .unidad.latido { animation: latido 1500ms ease; }
-  @keyframes latido { 0% { transform: scale(1); } 18% { transform: scale(1.07); } 100% { transform: scale(1); } }
-  .unidad.latido .chapa { background: var(--acento); border-color: var(--acento); color: #14100a; }
-  #reserva { margin-top: 14px; }
-  #reserva form { display: grid; gap: 8px; }
-  #reserva input { width: 100%; padding: 9px 11px; border-radius: 3px; border: 1px solid var(--linea);
-    background: rgba(244, 239, 230, .06); color: var(--tinta); font: inherit; font-size: 14px; }
-  #reserva input:focus { outline: none; border-color: var(--acento); }
-  #reserva .boton { margin-top: 0; }
-  #reserva .boton[disabled] { opacity: .4; cursor: default; border-color: var(--linea); color: var(--suave); }
-  #reserva .boton[disabled]:hover { background: transparent; color: var(--suave); }
-  #reserva p { margin: 8px 0 0; font-size: 12px; color: var(--suave); line-height: 1.45; }
-
-  /* --- capas: buscador, comparador y cotizador ------------------------------------- */
-  .capa { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; padding: clamp(8px, 3vw, 40px);
-    background: rgba(6, 9, 16, .74); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-    opacity: 0; pointer-events: none; transition: opacity 300ms ease-out; }
-  .capa.abierta { opacity: 1; pointer-events: auto; }
-  .capa .hoja { width: min(960px, 100%); max-height: 100%; display: flex; flex-direction: column; overflow: hidden;
-    background: #0e1424; border: 1px solid var(--linea); border-radius: 8px; box-shadow: 0 30px 90px rgba(0, 0, 0, .55);
-    transform: translateY(14px); transition: transform 300ms ease-out; }
-  #cotizador .hoja { width: min(820px, 100%); }
-  .capa.abierta .hoja { transform: none; }
-  .capa header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 18px 22px 12px; }
-  .capa h2 { margin: 4px 0 0; font-size: clamp(20px, 2.4vw, 28px); }
-  .capa .cuerpo { overflow: auto; padding: 0 22px 18px; min-height: 0; }
-  .capa .pie { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
-    padding: 12px 22px; border-top: 1px solid var(--linea); font-size: 12px; color: var(--suave); }
-  .capa .pie .boton { width: auto; margin: 0; }
-  .capa .pie .boton[disabled] { opacity: .35; cursor: default; }
-  .capa .pie .boton[disabled]:hover { background: transparent; color: var(--acento); }
-  .abre-buscador { pointer-events: auto; margin-top: 12px; display: block; background: rgba(10, 14, 24, .62); }
-  .barra .abre-buscador { margin-top: 0; }
-  #acceso { position: absolute; z-index: 3; right: clamp(16px, 3vw, 44px); top: clamp(14px, 3vh, 34px); margin: 0;
-    text-decoration: none; color: var(--suave); background: rgba(10, 14, 24, .62); }
-  /* El panel de asesores vive dentro del showroom: una capa a casi toda la pantalla. */
-  #panel-crm { padding: clamp(6px, 1.6vw, 22px); }
-  #panel-crm .hoja { width: min(1500px, 100%); height: 100%; }
-  #panel-crm header { align-items: center; padding: 12px 18px; border-bottom: 1px solid var(--linea); }
-  #panel-crm h2 { font-size: clamp(17px, 2vw, 22px); }
-  #marco-crm { flex: 1; width: 100%; min-height: 0; border: 0; background: #0d1220; }
-  #acceso:hover, #acceso:focus-visible { color: var(--tinta); }
-  .filtros { display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: center; padding: 4px 22px 14px;
-    border-bottom: 1px solid var(--linea); }
-  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
-  .chip { padding: 7px 13px; border-radius: 999px; border: 1px solid var(--linea); background: transparent; cursor: pointer;
-    font-size: 12px; color: var(--suave); transition: background 200ms ease, color 200ms ease, border-color 200ms ease; }
-  .chip:hover, .chip:focus-visible { border-color: var(--acento); color: var(--tinta); outline: none; }
-  .chip[aria-pressed="true"] { background: var(--acento); border-color: var(--acento); color: #14100a; }
-  .filtros label, .ajustes label { display: flex; align-items: center; gap: 8px; font-size: 11px; letter-spacing: .12em;
-    text-transform: uppercase; color: var(--suave); }
-  .filtros label b, .ajustes label b { font-weight: 500; color: var(--tinta); letter-spacing: .02em; text-transform: none; font-size: 13px; }
-  .capa select, .capa input[type="number"] { padding: 6px 8px; border-radius: 3px; border: 1px solid var(--linea);
-    background: #0e1424; color: var(--tinta); font: inherit; font-size: 13px; }
-  .capa input[type="range"], .capa input[type="checkbox"] { accent-color: var(--acento); }
-  #b-cuenta { padding: 12px 2px 6px; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--suave); }
-  .fila-u { display: grid; grid-template-columns: 26px 64px 1fr 96px 150px 104px; gap: 12px; align-items: center;
-    padding: 10px 8px; border-bottom: 1px solid rgba(244, 239, 230, .08); border-radius: 3px; cursor: pointer;
-    font-size: 14px; outline: none; transition: background 160ms ease, opacity 300ms ease; }
-  .fila-u:hover, .fila-u:focus-visible { background: rgba(244, 239, 230, .08); }
-  .fila-u.apartado { opacity: .62; } .fila-u.vendido { opacity: .4; }
-  .fila-u .n { font-family: Georgia, serif; font-size: 19px; }
-  .fila-u .t small { display: block; font-size: 11px; color: var(--suave); letter-spacing: .08em; }
-  .fila-u .a, .fila-u .p { font-variant-numeric: tabular-nums; }
-  .fila-u .a { color: var(--suave); } .fila-u .e { text-align: right; }
-  .fila-u input { width: 16px; height: 16px; cursor: pointer; }
-  #buscador .comparacion, #buscador.comparando .resultados, #buscador.comparando .filtros { display: none; }
-  #buscador.comparando .comparacion { display: block; }
-  .tabla { width: 100%; border-collapse: collapse; font-size: 14px; }
-  .tabla th, .tabla td { padding: 10px 10px; text-align: left; border-bottom: 1px solid rgba(244, 239, 230, .1); vertical-align: top; }
-  .tabla th { font-weight: 400; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--suave); white-space: nowrap; }
-  .tabla thead th { font-family: Georgia, serif; font-size: 22px; letter-spacing: 0; text-transform: none; color: var(--tinta); }
-  .tabla td.num, .tabla td:last-child.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .tabla tr.fuerte td { font-family: Georgia, serif; font-size: 19px; color: var(--acento); }
-  .tabla .boton { margin: 0; }
-  .ajustes { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 26px; padding: 6px 0 16px; }
-  .ajustes label { flex-wrap: wrap; justify-content: space-between; }
-  .ajustes input[type="range"] { flex: 1 0 100%; }
-  .ajustes input[type="number"] { width: 84px; }
-  .letra { margin: 14px 0 0; font-size: 11px; line-height: 1.5; color: rgba(244, 239, 230, .5); }
-  #acciones .boton { margin-top: 8px; }
-  .par { display: flex; gap: 8px; }
-  .par .boton { flex: 1; }
-  .boton[aria-pressed="true"] { background: rgba(224, 176, 115, .16); }
-  .fila-u .fav { font-style: normal; font-size: 12px; color: var(--acento); margin-left: 4px; }
-  #q-form { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; margin-top: 18px; }
-  #q-form .boton { margin: 0; width: auto; }
-  .entrada { width: 100%; padding: 9px 11px; border-radius: 3px; border: 1px solid var(--linea);
-    background: rgba(244, 239, 230, .06); color: var(--tinta); font: inherit; font-size: 14px; }
-  .entrada:focus { outline: none; border-color: var(--acento); }
-  /* En la sala de ventas la pantalla es de todos: nada de enlaces hacia fuera. */
-  body.sala { user-select: none; -webkit-user-select: none; }
-  body.sala .solo-web { display: none !important; }
-  @media (max-width: 760px) {
-    .fila-u { grid-template-columns: 24px 50px 1fr auto; }
-    .fila-u .a, .fila-u .e { display: none; }
-    .ajustes, #q-form { grid-template-columns: 1fr; }
-    .capa .pie .boton { flex: 1; }
-  }
-  /* La cotizacion se guarda en PDF con la impresion del navegador: sale sola, en papel claro. */
-  @media print {
-    :root { --tinta: #14161c; --suave: #555b66; --linea: #c9ccd3; --acento: #7a5320; }
-    html, body { height: auto; overflow: visible; background: #fff; }
-    .vista, #avisos, #buscador, #panel-crm, .no-papel { display: none !important; }
-    #cotizador { position: static; display: block; padding: 0; opacity: 1; background: none; backdrop-filter: none; }
-    #cotizador .hoja { width: 100%; max-height: none; background: #fff; border: 0; box-shadow: none; transform: none; }
-    #cotizador .cuerpo { overflow: visible; }
-    .letra { color: #555b66; }
-  }
-
-  /* --- estancia en 360 grados ------------------------------------------------------- */
-  #pano { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; pointer-events: none;
-    touch-action: none; cursor: grab; transition: opacity 520ms ease; }
-  #pano.agarrando { cursor: grabbing; }
-  #estancia.con-pano #pano { opacity: 1; pointer-events: auto; }
-  #estancia.con-pano.cambiando #pano { opacity: 0; }
-  #estancia.con-pano #foto-estancia { visibility: hidden; }
-  #saltos { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
-  #estancia:not(.con-pano) #saltos, #estancia:not(.con-pano) #pista-pano { display: none; }
-  #pista-pano { bottom: clamp(74px, 12vh, 104px); }
-  /* El punto para caminar a otra estancia: un aro en el suelo y su nombre. */
-  .salto { position: absolute; transform: translate(-50%, -50%); pointer-events: auto; cursor: pointer;
-    display: flex; flex-direction: column; align-items: center; gap: 8px; background: none; border: 0; padding: 6px; }
-  .salto i { width: 54px; height: 54px; border-radius: 50%; border: 2px solid rgba(255, 244, 224, .95);
-    background: rgba(255, 244, 224, .16); box-shadow: 0 0 0 8px rgba(255, 244, 224, .10), 0 6px 22px rgba(0, 0, 0, .5);
-    position: relative; transition: transform 220ms var(--curva), background 220ms ease; }
-  .salto i::after { content: ""; position: absolute; left: 50%; top: 50%; width: 12px; height: 12px;
-    border-top: 2px solid var(--tinta); border-right: 2px solid var(--tinta);
-    transform: translate(-50%, -30%) rotate(-45deg); }
-  .salto span { padding: 5px 11px; border-radius: 999px; background: rgba(10, 14, 24, .86); border: 1px solid var(--linea);
-    font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--tinta); white-space: nowrap; }
-  .salto:hover i, .salto:focus-visible i { transform: scale(1.14); background: rgba(224, 176, 115, .5); }
-  .salto:focus-visible { outline: none; }
-  #pestanas button .g360 { margin-left: 7px; font-size: 9px; letter-spacing: .08em; opacity: .7; }
-
-  /* --- estancia: la foto a pantalla completa, con la barra y las pestanas encima --- */
-  #estancia { background: #06090f; overflow: hidden; }
-  #foto-estancia { position: absolute; inset: 0; }
-  #foto-estancia img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
-    opacity: 0; transform: scale(1.04); transition: opacity 560ms ease, transform 1400ms var(--curva); }
-  #foto-estancia img.viva { opacity: 1; transform: none; }
-  #foto-estancia.espejo { transform: scaleX(-1); }
-  #estancia .velo { position: absolute; inset: 0; pointer-events: none; background:
-    linear-gradient(180deg, rgba(6,9,15,.62) 0%, rgba(6,9,15,0) 22%, rgba(6,9,15,0) 70%, rgba(6,9,15,.72) 100%); }
-  #estancia .barra { position: absolute; left: 0; right: 0; top: 0; }
-  #pestanas { position: absolute; left: 50%; bottom: clamp(14px, 3.4vh, 30px); transform: translateX(-50%);
-    display: flex; gap: 6px; padding: 5px; max-width: calc(100vw - 24px); overflow-x: auto;
-    background: var(--panel); border: 1px solid var(--linea); border-radius: 999px;
-    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
-  #pestanas button { background: transparent; border: 0; border-radius: 999px; cursor: pointer; white-space: nowrap;
-    padding: 9px 16px; font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--suave);
-    transition: background 200ms ease, color 200ms ease; }
-  #pestanas button[aria-current="true"] { background: var(--tinta); color: #10141d; }
-  #pestanas button:hover, #pestanas button:focus-visible { color: var(--tinta); outline: none; }
-  #pestanas button[aria-current="true"]:hover { color: #10141d; }
-
-  /* --- fachada ------------------------------------------------------------------ */
-  #fachada { overflow: hidden; }
-  /* El marco tiene la proporcion exacta de la imagen: la foto y las franjas
-     comparten coordenadas y no se descuadran al cambiar la ventana. */
-  #marco { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) scale(1);
-    will-change: transform; transition: transform var(--entra) var(--curva); }
-  #marco img { position: absolute; inset: 0; width: 100%; height: 100%; display: block;
-    user-select: none; -webkit-user-drag: none; }
-  svg.zonas { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-  svg.zonas .zona { fill: rgba(255, 244, 224, 0); stroke: rgba(255, 240, 214, 0); stroke-width: 1.8;
-    vector-effect: non-scaling-stroke; stroke-linejoin: round; cursor: pointer; pointer-events: all;
-    transition: fill 180ms ease, stroke 180ms ease; outline: none; }
-  #franjas .zona.activo { fill: rgba(255, 244, 224, .20); stroke: rgba(255, 240, 214, .96);
-    filter: drop-shadow(0 0 10px rgba(255, 226, 170, .55)); }
-  #sombra { position: absolute; inset: 0; pointer-events: none; background:
-    linear-gradient(180deg, rgba(8,11,18,.55) 0%, rgba(8,11,18,0) 20%, rgba(8,11,18,0) 72%,
-                    rgba(8,11,18,.62) 100%); }
-  #cabecera { position: absolute; left: clamp(16px, 3vw, 44px); top: clamp(14px, 3vh, 34px); pointer-events: none; }
-  #cabecera h1 { margin: 6px 0 0; font-size: clamp(24px, 3.2vw, 40px); letter-spacing: .01em; }
-
-  #ficha { position: absolute; z-index: 4; min-width: 236px; max-width: 300px; padding: 14px 16px;
-    background: var(--panel); border: 1px solid var(--linea); border-radius: 4px;
-    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
-    opacity: 0; transform: translateY(6px); pointer-events: none;
-    transition: opacity 200ms ease, transform 200ms ease; }
-  #ficha.visible { opacity: 1; transform: none; pointer-events: auto; }
-  #ficha .fila { display: flex; align-items: flex-start; gap: 14px; }
-  #ficha .num { font-family: Georgia, serif; font-size: 42px; line-height: .9; }
-  #ficha .num small { display: block; font-family: "Segoe UI", system-ui, sans-serif; font-size: 10px;
-    letter-spacing: .24em; color: var(--suave); margin-bottom: 6px; }
-  #ficha h2 { margin: 2px 0 6px; font-size: 19px; }
-  #ficha ul { list-style: none; margin: 0; padding: 0; font-size: 13px; line-height: 1.55; color: var(--suave); }
-  .boton { margin-top: 12px; width: 100%; padding: 9px 12px; background: transparent; cursor: pointer;
-    border: 1px solid rgba(224, 176, 115, .7); border-radius: 2px; color: var(--acento);
-    font-size: 11px; letter-spacing: .2em; text-transform: uppercase;
-    transition: background 200ms ease, color 200ms ease; }
-  .boton:hover, .boton:focus-visible { background: var(--acento); color: #14100a; outline: none; }
-  #guia { position: absolute; z-index: 3; height: 1px; background: rgba(255, 240, 214, .8);
-    opacity: 0; pointer-events: none; transition: opacity 200ms ease; }
-  #guia.visible { opacity: 1; }
-  .pista { position: absolute; left: 50%; bottom: clamp(16px, 4vh, 34px); transform: translateX(-50%); z-index: 3;
-    font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--suave);
-    padding: 9px 16px; border-radius: 999px; background: rgba(10, 14, 24, .5); border: 1px solid var(--linea);
-    pointer-events: none; transition: opacity 500ms ease; white-space: nowrap; }
-  .pista.vista-ya { opacity: 0; }
-
-  /* --- planta y apartamento: barra arriba, lamina debajo -------------------------- */
-  #planta, #apto { display: grid; grid-template-rows: auto 1fr;
-    background: radial-gradient(120% 90% at 50% 40%, #16203a 0%, #0a0f1a 70%); }
-  .barra { display: flex; align-items: center; gap: 18px; padding: clamp(12px, 2.4vh, 24px) clamp(16px, 3vw, 44px); }
-  .volver { background: transparent; border: 1px solid var(--linea); border-radius: 999px; cursor: pointer;
-    padding: 9px 16px; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; white-space: nowrap;
-    transition: background 200ms ease; }
-  .volver:hover, .volver:focus-visible { background: rgba(244, 239, 230, .12); outline: none; }
-  .titulo { flex: 1; min-width: 0; }
-  .titulo h2 { margin: 3px 0 0; font-size: clamp(20px, 2.4vw, 30px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  #pisos { display: flex; gap: 6px; }
-  #pisos button { width: 36px; height: 36px; border-radius: 50%; background: transparent; cursor: pointer;
-    border: 1px solid var(--linea); font-size: 13px; color: var(--suave);
-    transition: background 200ms ease, color 200ms ease, border-color 200ms ease; }
-  #pisos button[aria-current="true"] { background: var(--acento); border-color: var(--acento); color: #14100a; }
-  #pisos button:hover, #pisos button:focus-visible { border-color: var(--acento); color: var(--tinta); outline: none; }
-  #pisos button[aria-current="true"]:hover { color: #14100a; }
-
-  .campo { position: relative; margin: 0 clamp(12px, 3vw, 44px) clamp(12px, 3vh, 34px); min-height: 0; }
-  /* El piso no es una lamina: es su casco (pasillo y nucleo) y, encima, la planta
-     comercial de cada apartamento como pieza suelta. El conjunto se dimensiona
-     por script a la proporcion del casco, y cada pieza va en porcentaje. */
-  #lamina { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) scale(1);
-    transition: transform var(--entra) var(--curva); }
-  #lamina > img { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0;
-    transition: opacity 520ms ease; filter: drop-shadow(0 22px 40px rgba(0, 0, 0, .45)); }
-  #lamina > img.viva { opacity: 1; }
-  #unidades { position: absolute; inset: 0; }
-  /* Cada apartamento llega por su cuenta, uno detras de otro. El relleno es
-     solo hacia atras: al terminar, la pieza vuelve a obedecer a sus clases. */
-  .unidad { position: absolute; padding: 0; border: 0; background: none; cursor: pointer; outline: none;
-    animation: llega 760ms var(--curva) backwards;
-    transition: transform 280ms var(--curva); }
-  .unidad img { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none;
-    filter: drop-shadow(0 8px 14px rgba(0, 0, 0, .40)); transition: filter 320ms ease; }
-  .unidad.activo, .unidad:focus-visible { transform: translateY(-1.6%) scale(1.035); z-index: 3; }
-  .unidad.activo img, .unidad:focus-visible img {
-    filter: drop-shadow(0 22px 30px rgba(0, 0, 0, .62)) brightness(1.07) saturate(1.05); }
-  /* El estado se dice con luz, no con semaforo: lo vendido se apaga, lo
-     apartado se vela, lo disponible queda encendido. */
-  .unidad.apartado img { filter: drop-shadow(0 8px 14px rgba(0, 0, 0, .40)) grayscale(.5) brightness(.70); }
-  .unidad.vendido img { filter: drop-shadow(0 8px 14px rgba(0, 0, 0, .40)) grayscale(.92) brightness(.42); }
-  .unidad.apartado.activo img { filter: drop-shadow(0 22px 30px rgba(0, 0, 0, .62)) grayscale(.35) brightness(.86); }
-  .unidad.vendido.activo img { filter: drop-shadow(0 22px 30px rgba(0, 0, 0, .62)) grayscale(.9) brightness(.55); }
-  .chapa { position: absolute; transform: translate(-50%, -50%); padding: 4px 11px; border-radius: 999px;
-    background: rgba(10, 14, 24, .84); border: 1px solid var(--linea); color: var(--tinta);
-    font-size: clamp(10px, 1vw, 13px); letter-spacing: .08em; white-space: nowrap; pointer-events: none;
-    transition: background 240ms ease, color 240ms ease, border-color 240ms ease; }
-  .unidad.activo .chapa { background: var(--acento); border-color: var(--acento); color: #14100a; }
-  .unidad.vendido .chapa, .unidad.apartado .chapa { color: var(--suave); }
-  .zona-rotulo { position: absolute; transform: translate(-50%, -50%); text-align: center; pointer-events: none;
-    padding: 6px 12px; border-radius: 4px; background: rgba(10, 14, 24, .78); border: 1px solid var(--linea);
-    font-size: clamp(10px, 1vw, 13px); white-space: nowrap; animation: llega-rotulo 760ms var(--curva) backwards; }
-  .zona-rotulo small { display: block; color: var(--suave); font-size: .86em; margin-top: 2px; }
-  @keyframes llega { from { opacity: 0; transform: translateY(28px) scale(.955); } }
-  /* El rotulo ya lleva su propio centrado en `transform`: su llegada lo conserva. */
-  @keyframes llega-rotulo { from { opacity: 0; transform: translate(-50%, calc(-50% + 22px)); } }
-  .estado { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 10px; letter-spacing: .18em;
-    text-transform: uppercase; border: 1px solid var(--linea); color: var(--suave); }
-  .estado.disponible { border-color: var(--acento); color: var(--acento); }
-  .estado.vendido { opacity: .7; text-decoration: line-through; }
-  #leyenda { position: absolute; left: 0; bottom: 0; display: flex; gap: 16px; font-size: 11px;
-    letter-spacing: .14em; text-transform: uppercase; color: var(--suave); pointer-events: none; }
-  #leyenda i { display: inline-block; width: 12px; height: 12px; margin-right: 6px; vertical-align: -2px; border-radius: 2px;
-    border: 1px solid rgba(244, 239, 230, .5); background: #fcfbf8; }
-  #leyenda i { background: #d9b98c; }
-  #leyenda i.apartado { background: #8f8a80; }
-  #leyenda i.vendido { background: #46464a; }
-  #nota-demo { margin-top: 14px; font-size: 11px; line-height: 1.5; color: rgba(244, 239, 230, .42); }
-  #rotulo { position: absolute; z-index: 3; padding: 8px 12px; border-radius: 4px; background: rgba(10, 14, 24, .92);
-    border: 1px solid var(--linea); font-size: 13px; white-space: nowrap; pointer-events: none;
-    opacity: 0; transform: translate(-50%, 6px); transition: opacity 160ms ease, transform 160ms ease; }
-  #rotulo.visible { opacity: 1; transform: translate(-50%, 0); }
-  #rotulo b { font-family: Georgia, serif; font-weight: 400; font-size: 16px; margin-right: 8px; }
-  #rotulo span { color: var(--suave); }
-
-  /* --- apartamento ---------------------------------------------------------------- */
-  #apto .campo { display: grid; grid-template-columns: 1fr minmax(240px, 320px); gap: clamp(12px, 2.4vw, 32px);
-    align-items: center; }
-  #escena-apto { position: relative; width: 100%; height: 100%; min-height: 0; }
-  #corte { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); border-radius: 8px; overflow: hidden;
-    box-shadow: 0 30px 80px rgba(0, 0, 0, .45); }
-  #corte img { position: absolute; inset: 0; width: 100%; height: 100%; }
-  #corte.espejo img { transform: scaleX(-1); }
-  .punto { position: absolute; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%; padding: 0;
-    background: rgba(255, 244, 224, .95); border: 0; cursor: pointer;
-    box-shadow: 0 0 0 5px rgba(255, 244, 224, .22), 0 2px 10px rgba(0, 0, 0, .5);
-    transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease; }
-  .punto:hover, .punto:focus-visible, .punto.activo { transform: scale(1.25); background: var(--acento);
-    box-shadow: 0 0 0 8px rgba(224, 176, 115, .3), 0 2px 12px rgba(0, 0, 0, .6); outline: none; }
-  .punto i { position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%); padding: 5px 9px; border-radius: 3px;
-    background: rgba(10, 14, 24, .92); border: 1px solid var(--linea); font-style: normal; font-size: 12px;
-    letter-spacing: .04em; white-space: nowrap; color: var(--tinta); opacity: 0; pointer-events: none;
-    transition: opacity 160ms ease; }
-  .punto:hover i, .punto:focus-visible i, .punto.activo i { opacity: 1; }
-  /* Sin foto todavia: el punto informa, pero no invita a entrar. */
-  .punto.sin-foto { width: 10px; height: 10px; margin: -5px 0 0 -5px; background: rgba(255, 244, 224, .6);
-    box-shadow: 0 0 0 3px rgba(255, 244, 224, .14); cursor: default; }
-  #estancias li.con-foto { cursor: pointer; }
-  #estancias li.con-foto span:first-child::after { content: "  ›"; color: var(--acento); }
-  #datos { align-self: center; max-height: 100%; overflow: auto; padding: 4px 2px; }
-  #datos h3 { margin: 4px 0 14px; font-size: clamp(24px, 2.6vw, 34px); }
-  #datos .cifras { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; padding: 14px 0;
-    border-top: 1px solid var(--linea); border-bottom: 1px solid var(--linea); }
-  #datos .cifras b { display: block; font-family: Georgia, serif; font-weight: 400; font-size: 22px; }
-  #datos .cifras span { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--suave); }
-  #estancias { list-style: none; margin: 12px 0 0; padding: 0; }
-  #estancias li { display: flex; justify-content: space-between; gap: 12px; padding: 7px 6px; font-size: 14px;
-    border-radius: 3px; cursor: default; color: var(--suave); transition: background 160ms ease, color 160ms ease; }
-  #estancias li.activo { background: rgba(244, 239, 230, .1); color: var(--tinta); }
-  #estancias li span:last-child { font-variant-numeric: tabular-nums; }
-
-  @media (max-width: 760px) {
-    #ficha { left: 12px !important; right: 12px; top: auto !important; bottom: 14px; max-width: none; }
-    #guia { display: none; }
-    .barra { flex-wrap: wrap; row-gap: 10px; }
-    #pisos { width: 100%; justify-content: space-between; }
-    #apto .campo { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto; }
-    #datos { max-height: 38vh; }
-  }
-  @media (prefers-reduced-motion: reduce) { :root { --entra: 200ms; } }
-</style>
+<title>Mileto · Apartamentos nuevos en Chapinero Alto, Bogotá</title>
+<meta name="description" content="Edificio de siete pisos y 47 viviendas al pie de los cerros orientales: aparta-estudios, dos alcobas y penthouses en preventa. Recorre el showroom virtual, cotiza y agenda tu visita.">
+<link rel="canonical" href="https://diddiersantiago.github.io/mileto-demo/">
+<meta name="theme-color" content="#1F1B17">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="es_CO">
+<meta property="og:site_name" content="Edificio Mileto">
+<meta property="og:title" content="Mileto · Apartamentos nuevos en Chapinero Alto, Bogotá">
+<meta property="og:description" content="Edificio de siete pisos y 47 viviendas al pie de los cerros orientales: aparta-estudios, dos alcobas y penthouses en preventa. Recorre el showroom virtual, cotiza y agenda tu visita.">
+<meta property="og:url" content="https://diddiersantiago.github.io/mileto-demo/">
+<meta property="og:image" content="https://diddiersantiago.github.io/mileto-demo/img/compartir.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="img/icono.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&amp;family=Manrope:wght@400;500;600&amp;display=swap" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&amp;family=Manrope:wght@400;500;600&amp;display=swap"></noscript>
+<link rel="preload" as="image" href="img/fachada-1920.webp" imagesrcset="img/fachada-640.webp 640w, img/fachada-1280.webp 1280w, img/fachada-1920.webp 1920w" imagesizes="100vw" fetchpriority="high">
+<style>:root { --hueso: #EFEAE2; --arena: #D9CFC0; --piedra: #B9AD9C; --teca: #9A5B34; --teca-clara: #C08457; --cerro: #4B5545; --grafito: #1F1B17; --noche: #15120F; --serif: "Cormorant Garamond", "Cormorant", Georgia, serif; --sans: "Manrope", "Segoe UI", system-ui, sans-serif; }</style>
+<link rel="stylesheet" href="css/sitio.css">
+<script>document.documentElement.classList.add("js");try{if(sessionStorage.getItem("mileto-visto"))document.documentElement.classList.add("visto-antes")}catch(e){}</script>
+<script type="application/ld+json">[{"@context": "https://schema.org", "@type": "ApartmentComplex", "name": "Edificio Mileto", "description": "Edificio de siete pisos y 47 viviendas al pie de los cerros orientales: aparta-estudios, dos alcobas y penthouses en preventa. Recorre el showroom virtual, cotiza y agenda tu visita.", "url": "https://diddiersantiago.github.io/mileto-demo", "image": "https://diddiersantiago.github.io/mileto-demo/img/compartir.jpg", "numberOfAccommodationUnits": 47, "address": {"@type": "PostalAddress", "addressLocality": "Bogotá", "addressRegion": "Bogotá D.C.", "addressCountry": "CO", "streetAddress": "Carrera 0 # 00-00, Chapinero Alto (dirección de ejemplo)"}, "amenityFeature": [{"@type": "LocationFeatureSpecification", "name": "Lobby · recepción", "value": true}, {"@type": "LocationFeatureSpecification", "name": "Local comercial 1", "value": true}, {"@type": "LocationFeatureSpecification", "name": "Coworking", "value": true}, {"@type": "LocationFeatureSpecification", "name": "Local comercial 2", "value": true}, {"@type": "LocationFeatureSpecification", "name": "Gimnasio", "value": true}, {"@type": "LocationFeatureSpecification", "name": "Salón social", "value": true}, {"@type": "LocationFeatureSpecification", "name": "Lounge · sala de juntas", "value": true}, {"@type": "LocationFeatureSpecification", "name": "Terraza del salón", "value": true}], "offers": {"@type": "AggregateOffer", "priceCurrency": "COP", "lowPrice": 570000000, "highPrice": 3460000000, "offerCount": 29, "availability": "https://schema.org/PreOrder"}}, {"@context": "https://schema.org", "@type": "Organization", "name": "Constructora Ejemplo S.A.S.", "url": "https://constructora.example.com", "contactPoint": {"@type": "ContactPoint", "contactType": "sales", "telephone": "+57 300 000 0000", "areaServed": "CO", "availableLanguage": "es"}}, {"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "¿Cuándo se entregan los apartamentos?", "acceptedAnswer": {"@type": "Answer", "text": "La entrega está prevista para el segundo semestre de 2028. La fecha exacta queda en tu promesa de compraventa."}}, {"@type": "Question", "name": "¿Cómo separo un apartamento?", "acceptedAnswer": {"@type": "Answer", "text": "Eliges la unidad, firmas el formato de separación y haces el pago de separación a la fiducia del proyecto. Desde ese momento la unidad queda a tu nombre mientras se firma la promesa."}}, {"@type": "Question", "name": "¿Dónde queda mi dinero mientras empieza la obra?", "acceptedAnswer": {"@type": "Answer", "text": "En un encargo fiduciario a nombre del proyecto. La fiduciaria entrega los recursos a la constructora solo cuando el proyecto cumple el punto de equilibrio: ventas mínimas, licencia y financiación de la obra."}}, {"@type": "Question", "name": "¿Puedo pagar la cuota inicial con cesantías?", "acceptedAnswer": {"@type": "Answer", "text": "Sí. Puedes abonar cesantías y recursos de cuentas AFC a la cuota inicial. Te damos la certificación que pide tu fondo."}}, {"@type": "Question", "name": "¿Los parqueaderos están incluidos?", "acceptedAnswer": {"@type": "Answer", "text": "No. Los parqueaderos de carro y de moto se compran aparte, según disponibilidad en los dos sótanos."}}, {"@type": "Question", "name": "¿Puedo comprar si vivo fuera de Colombia?", "acceptedAnswer": {"@type": "Answer", "text": "Sí. Atendemos por videollamada, firmas con poder o de forma digital y puedes pagar desde el exterior a la fiducia como inversión extranjera."}}, {"@type": "Question", "name": "¿Hay subsidio de vivienda?", "acceptedAnswer": {"@type": "Answer", "text": "Mileto es vivienda No VIS, así que no aplica a subsidios de vivienda de interés social. Sí aplica a crédito hipotecario y leasing habitacional."}}, {"@type": "Question", "name": "¿Se permiten mascotas?", "acceptedAnswer": {"@type": "Answer", "text": "Sí, según el reglamento de propiedad horizontal que se entrega con la promesa."}}]}]</script>
+<script id="config" type="application/json">{"marca": {"nombre": "Mileto", "nombre_largo": "Edificio Mileto", "lugar": "Chapinero Alto · Bogotá", "eslogan": "Arriba de la ciudad, al pie de los cerros."}, "contacto": {"whatsapp": "573000000000", "horario": {"0": [[9, 13], [14, 18]], "1": [[9, 13], [14, 18]], "2": [[9, 13], [14, 18]], "3": [[9, 13], [14, 18]], "4": [[9, 13], [14, 18]], "5": [[9, 15]], "6": [[10, 14]]}, "agente": "Sofía"}, "crm": {"_nota": "Dirección del CRM real (la misma de showroom/sitio/conexion.json). Vacía = la página usa el doble local (lee showroom/sitio/datos.json y guarda los formularios en este navegador).", "base": "", "datos_locales": "showroom/datos.json", "refresco_segundos": 60}, "showroom": {"url": "showroom/index.html", "datos": "../showroom/sitio/"}, "tipologias": {"estudio": {"nombre": "Aparta-estudio", "planta": "planta-estudio", "interior_m2": 43.2}, "dos": {"nombre": "Dos alcobas", "planta": "planta-dos", "interior_m2": 103.0}, "penthouse": {"nombre": "Penthouse", "planta": "planta-penthouse", "interior_m2": 218.9}}, "pisos": {"1": ["Acceso y zonas comunes", "Lobby, coworking, gimnasio, salón social y dos locales"], "2": ["Piso 2", "Aparta-estudios y dos alcobas"], "3": ["Piso 3", "Aparta-estudios y dos alcobas"], "4": ["Piso 4", "Aparta-estudios y dos alcobas"], "5": ["Piso 5", "Aparta-estudios y dos alcobas"], "6": ["Piso 6", "Aparta-estudios y dos alcobas"], "7": ["Penthouses", "Dos penthouses con terraza en dos frentes"]}, "enlaces": {"201": "apto-2-1", "202": "apto-2-2", "203": "apto-2-3", "204": "apto-2-4", "205": "apto-2-5", "206": "apto-2-6", "207": "apto-2-7", "208": "apto-2-8", "209": "apto-2-9", "301": "apto-3-1", "302": "apto-3-2", "303": "apto-3-3", "304": "apto-3-4", "305": "apto-3-5", "306": "apto-3-6", "307": "apto-3-7", "308": "apto-3-8", "309": "apto-3-9", "401": "apto-4-1", "402": "apto-4-2", "403": "apto-4-3", "404": "apto-4-4", "405": "apto-4-5", "406": "apto-4-6", "407": "apto-4-7", "408": "apto-4-8", "409": "apto-4-9", "501": "apto-5-1", "502": "apto-5-2", "503": "apto-5-3", "504": "apto-5-4", "505": "apto-5-5", "506": "apto-5-6", "507": "apto-5-7", "508": "apto-5-8", "509": "apto-5-9", "601": "apto-6-1", "602": "apto-6-2", "603": "apto-6-3", "604": "apto-6-4", "605": "apto-6-5", "606": "apto-6-6", "607": "apto-6-7", "608": "apto-6-8", "609": "apto-6-9", "PH A": "apto-7-1", "PH B": "apto-7-2"}, "punto_equilibrio_pct": 60, "mensajes": {"_nota": "Lo que ve la persona al enviar cada formulario. {unidad} y {cuando} se reemplazan.", "contacto": "Demostración: tus datos quedaron solo en este navegador. Nadie va a contactarte.", "visita": "Demostración: la visita del {cuando} quedó solo en este navegador. Nadie va a contactarte.", "cotizacion": "Demostración: la cotización del apartamento {unidad} quedó solo en este navegador. Nadie va a contactarte."}, "agente": {"url": "agente/index.html"}}</script>
+<script type="module" src="js/app.js"></script>
 </head>
-<body data-vista="fachada">
+<body>
+<div class="precarga" aria-hidden="true">
+  <svg class="precarga-marca" viewBox="0 0 120 120"><rect class="trazo" x="10" y="10" width="100" height="100"/><path class="trazo" d="M34 88V34l26 30 26-30v54"/></svg>
+  <p class="precarga-nombre">MILETO</p>
+  <p class="precarga-cifra"><span data-precarga>0</span>%</p>
+  <span class="precarga-linea"><i></i></span>
+</div>
+<div class="cursor" aria-hidden="true"><span class="cursor-texto"></span></div>
+<a class="saltar" href="#contenido">Saltar al contenido</a>
+<header class="cabecera" id="cabecera" data-tono="oscuro">
+  <div class="cabecera-fila">
+    <a class="logo" href="#inicio" aria-label="Mileto, ir al inicio"><span class="logo-m">M</span><span class="logo-t">MILETO</span></a>
+    <nav class="cabecera-enlaces" aria-label="Accesos">
+      <a class="enlace-subrayado" href="showroom/index.html#" data-showroom="" data-contexto="la fachada">Showroom</a>
+      <a class="enlace-subrayado" href="#tipologias">Apartamentos</a>
+      <a class="boton boton-cabecera" href="#contacto" data-pestana="visita">Agenda tu visita</a>
+    </nav>
+    <button class="abre-menu" type="button" aria-expanded="false" aria-controls="menu" aria-label="Abrir menú"><span class="abre-menu-t">Menú</span><span class="hamburguesa"><i></i><i></i></span></button>
+  </div>
+</header>
+<div class="menu" id="menu" data-tono="oscuro" hidden>
+  <div class="menu-rejilla">
+    <nav aria-label="Principal"><ol><li style="--k:0"><a href="#proyecto"><span class="menu-n">01</span><span class="menu-t">El proyecto</span></a></li><li style="--k:1"><a href="#edificio"><span class="menu-n">02</span><span class="menu-t">El edificio</span></a></li><li style="--k:2"><a href="#ubicacion"><span class="menu-n">03</span><span class="menu-t">Ubicación</span></a></li><li style="--k:3"><a href="#tipologias"><span class="menu-n">04</span><span class="menu-t">Apartamentos</span></a></li><li style="--k:4"><a href="#amenidades"><span class="menu-n">05</span><span class="menu-t">Zonas comunes</span></a></li><li style="--k:5"><a href="#galeria"><span class="menu-n">06</span><span class="menu-t">Galería</span></a></li><li style="--k:6"><a href="#financiacion"><span class="menu-n">07</span><span class="menu-t">Financiación</span></a></li><li style="--k:7"><a href="#avance"><span class="menu-n">08</span><span class="menu-t">Avance de obra</span></a></li><li style="--k:8"><a href="#contacto"><span class="menu-n">09</span><span class="menu-t">Contacto</span></a></li></ol></nav>
+    <div class="menu-lado">
+      <figure class="menu-foto"><img class="" src="img/ph-terraza-1280.webp" srcset="img/ph-terraza-640.webp 640w, img/ph-terraza-1280.webp 1280w" sizes="30vw" width="1280" height="720" alt="" loading="lazy" decoding="async"></figure>
+      <p class="nota claro">Sala de ventas Mileto · Carrera 0 # 00-00, Chapinero Alto (dirección de ejemplo)<br>Lunes a viernes de 9:00 a 18:00 · sábados de 9:00 a 15:00 · domingos de 10:00 a 14:00</p>
+      <a class="boton boton-linea-clara" href="agente/index.html" data-whatsapp target="_blank" rel="noopener"><svg class="icono" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.1l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.3-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .1-1.3c0-.1-.2-.2-.5-.3Z" fill="currentColor"/></svg> Probar el agente</a>
+    </div>
+  </div>
+</div>
+<main id="contenido">
 
-<section id="fachada" class="vista" aria-label="Fachada del edificio">
-  <div id="marco">
-    <img src="fachada/fachada_atardecer.webp" alt="Fachada del edificio al atardecer, en Bogotá" draggable="false">
-    <svg id="franjas" class="zonas" viewBox="0 0 1600 900" preserveAspectRatio="none" role="group" aria-label="Pisos del edificio"></svg>
+<section id="inicio" class="inicio" data-tono="oscuro" aria-labelledby="t-inicio">
+  <div class="inicio-fijo">
+    <div class="inicio-ventana" data-parallax="inicio">
+      <img class="inicio-img" src="img/fachada-1280.webp" srcset="img/fachada-640.webp 640w, img/fachada-1280.webp 1280w, img/fachada-1920.webp 1920w" sizes="100vw" width="1280" height="720" alt="Fachada del edificio Mileto al atardecer, con los cerros orientales de Bogotá al fondo" fetchpriority="high" decoding="async">
+    </div>
+    <div class="inicio-velo" aria-hidden="true"></div>
+    <div class="inicio-texto envoltura">
+      <p class="sobre claro aparece" style="--d:.2s">Preventa · Chapinero Alto, Bogotá</p>
+      <h1 id="t-inicio"><span class="marca-gigante" aria-label="Mileto"><span class="letra" style="--i:0">M</span><span class="letra" style="--i:1">I</span><span class="letra" style="--i:2">L</span><span class="letra" style="--i:3">E</span><span class="letra" style="--i:4">T</span><span class="letra" style="--i:5">O</span></span>
+        <span class="eslogan aparece" style="--d:.55s">Arriba de la ciudad, al pie de los cerros.</span></h1>
+      <div class="inicio-pie">
+        <p class="entrada aparece" style="--d:.7s">Siete pisos y 47 viviendas con balcón frente a los cerros orientales. Entrega prevista en el segundo semestre de 2028.</p>
+        <div class="acciones aparece" style="--d:.85s">
+          <a class="boton boton-claro con-flecha" href="showroom/index.html#" data-showroom="" data-contexto="la fachada" data-magnetico><span class="txt">Entrar al showroom</span><svg class="icono" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <a class="boton boton-linea-clara" href="#contacto" data-pestana="visita">Agendar una visita</a>
+        </div>
+      </div>
+      <p class="en-vivo aparece" style="--d:1s" aria-live="polite"><i aria-hidden="true"></i><span data-vivo="resumen">29 apartamentos disponibles de 47</span></p>
+    </div>
+    <a class="bajar aparece" style="--d:1.1s" href="#proyecto" aria-label="Bajar a la descripción del proyecto"><span>Descubrir</span><i></i></a>
   </div>
-  <div id="sombra"></div>
-  <div id="cabecera">
-    <div class="sobre" id="c-lugar">Bogotá · 47 apartamentos</div>
-    <h1 class="serif" id="c-nombre">Mileto</h1>
-    <div id="enlace"><i></i><span id="enlace-txt">Conectando con el CRM…</span></div>
-    <button class="volver abre-buscador">Buscar apartamento</button>
+</section>
+
+<section id="proyecto" class="seccion seccion-hueso" data-tono="claro" aria-labelledby="t-proyecto">
+  <div class="envoltura">
+    <p class="sobre" data-revela><span class="num">01</span><span class="raya"></span>El proyecto</p><h2 class="titulo-seccion " id="t-proyecto" data-lineas>Un edificio pensado como un buen plano</h2>
+    <p class="manifiesto" data-encender><span class="w">Siete</span> <span class="w">pisos</span> <span class="w">frente</span> <span class="w">a</span> <span class="w">los</span> <span class="w">cerros</span> <span class="w">orientales.</span> <span class="w">Calles</span> <span class="w">en</span> <span class="w">pendiente,</span> <span class="w">árboles</span> <span class="w">grandes</span> <span class="w">y</span> <span class="w">la</span> <span class="w">luz</span> <span class="w">de</span> <span class="w">la</span> <span class="w">tarde</span> <span class="w">entrando</span> <span class="w">hasta</span> <span class="w">la</span> <span class="w">sala.</span> <span class="w">Mileto</span> <span class="w">es</span> <span class="w">un</span> <span class="w">edificio</span> <span class="w">pensado</span> <span class="w">como</span> <span class="w">un</span> <span class="w">buen</span> <span class="w">plano:</span> <span class="w">cada</span> <span class="w">cosa</span> <span class="w">en</span> <span class="w">su</span> <span class="w">sitio.</span></p>
+    <div class="proyecto-rejilla">
+      <figure class="marco-img alto" data-revela-img data-cursor="Ver">
+        <img class="paralaje" src="img/dos-social-1280.webp" srcset="img/dos-social-640.webp 640w, img/dos-social-1280.webp 1280w, img/dos-social-1920.webp 1920w" sizes="(max-width: 900px) 100vw, 45vw" width="1280" height="720" alt="Sala y comedor de un apartamento de dos alcobas, con ventanal hacia los cerros" loading="lazy" decoding="async">
+      </figure>
+      <div class="proyecto-texto">
+        <p class="parrafo" data-revela>Mileto toma su nombre de la ciudad griega donde se trazó la primera cuadrícula urbana: calles ordenadas, manzanas claras, todo en su sitio. Esa idea guía el edificio. Cada planta se lee de un vistazo, las zonas sociales dan a la luz y las alcobas quedan en el lado tranquilo.</p><p class="parrafo" data-revela>Son siete pisos sobre una calle residencial de Chapinero Alto. El primero es del edificio y del barrio: lobby, coworking, gimnasio, salón social con terraza y dos locales. Del segundo al sexto, nueve apartamentos por piso. Arriba, dos penthouses con terraza en dos frentes.</p>
+        <ul class="cifras"><li data-revela style="--d:0.00s"><b data-contar="7">7</b><span>pisos</span></li><li data-revela style="--d:0.08s"><b data-contar="47">47</b><span>viviendas</span></li><li data-revela style="--d:0.16s"><b data-contar="3">3</b><span>tipologías</span></li><li data-revela style="--d:0.24s"><b data-contar="2028">2028</b><span>entrega prevista</span></li></ul>
+      </div>
+    </div>
   </div>
-  <button class="volver solo-web" id="acceso">Acceso asesores</button>
-  <div id="guia"></div>
-  <aside id="ficha" aria-live="polite">
-    <div class="fila">
-      <div class="num"><small>PISO</small><span id="f-num"></span></div>
+</section>
+
+<section id="edificio" class="seccion seccion-arena" data-tono="claro" aria-labelledby="t-pisos">
+  <div class="envoltura">
+    <div class="cabeza-dos">
+      <div><p class="sobre" data-revela><span class="num">02</span><span class="raya"></span>El edificio</p><h2 class="titulo-seccion " id="t-pisos" data-lineas>Elige tu piso</h2></div>
+      <p class="parrafo" data-revela>Pasa por la fachada: cada piso te dice qué tiene y cuántos apartamentos siguen libres, al día con la sala de ventas.</p>
+    </div>
+    <div class="selector-pisos" data-revela>
+      <figure class="fachada-interactiva">
+        <img class="" src="img/fachada-1280.webp" srcset="img/fachada-640.webp 640w, img/fachada-1280.webp 1280w, img/fachada-1920.webp 1920w" sizes="(max-width: 900px) 100vw, 64vw" width="1280" height="720" alt="Fachada de Mileto con los siete pisos marcados" loading="lazy" decoding="async">
+        <svg viewBox="0 0 1600 900" preserveAspectRatio="none" aria-hidden="true"><polygon class="franja" data-piso="7" points="409.1,346.5 409.9,290.5 425.6,252.5 1157.3,293.6 1157.9,348.9"/><polygon class="franja" data-piso="6" points="359.7,405.3 360.5,350.1 373.8,303.3 1255.2,343.4 1256.2,400.7"/><polygon class="franja" data-piso="5" points="358.7,460.7 359.7,405.3 372.6,372.4 1256.2,400.7 1257.1,458.1"/><polygon class="franja" data-piso="4" points="357.8,516.4 358.7,460.7 371.5,441.8 1257.1,458.1 1258.1,515.7"/><polygon class="franja" data-piso="3" points="357.0,572.3 357.8,516.4 370.4,511.6 1258.1,515.7 1259.0,573.7 369.3,581.9"/><polygon class="franja" data-piso="2" points="356.0,628.4 357.0,572.3 1259.0,573.7 1260.0,631.8 368.2,652.3"/><polygon class="franja" data-piso="1" points="354.7,703.6 356.0,628.4 1260.0,631.8 1261.4,709.7 366.7,747.0"/></svg>
+        <figcaption class="piso-tarjeta" aria-live="polite">
+          <span class="piso-tarjeta-n" data-piso-n>07</span>
+          <span><b data-piso-titulo>Penthouses</b><small data-piso-detalle>Dos penthouses con terraza en dos frentes</small></span>
+        </figcaption>
+      </figure>
+      <div class="pisos-lista">
+        <ol><li><button type="button" class="piso-fila" data-piso="7" aria-describedby="piso-det-7"><span class="piso-n">07</span><span class="piso-nombre">Penthouses</span><span class="piso-libres" data-vivo="piso-7">1 de 2 libres</span></button><span class="sr" id="piso-det-7">Dos penthouses con terraza en dos frentes</span></li><li><button type="button" class="piso-fila" data-piso="6" aria-describedby="piso-det-6"><span class="piso-n">06</span><span class="piso-nombre">Piso 6</span><span class="piso-libres" data-vivo="piso-6">5 de 9 libres</span></button><span class="sr" id="piso-det-6">Aparta-estudios y dos alcobas</span></li><li><button type="button" class="piso-fila" data-piso="5" aria-describedby="piso-det-5"><span class="piso-n">05</span><span class="piso-nombre">Piso 5</span><span class="piso-libres" data-vivo="piso-5">7 de 9 libres</span></button><span class="sr" id="piso-det-5">Aparta-estudios y dos alcobas</span></li><li><button type="button" class="piso-fila" data-piso="4" aria-describedby="piso-det-4"><span class="piso-n">04</span><span class="piso-nombre">Piso 4</span><span class="piso-libres" data-vivo="piso-4">7 de 9 libres</span></button><span class="sr" id="piso-det-4">Aparta-estudios y dos alcobas</span></li><li><button type="button" class="piso-fila" data-piso="3" aria-describedby="piso-det-3"><span class="piso-n">03</span><span class="piso-nombre">Piso 3</span><span class="piso-libres" data-vivo="piso-3">4 de 9 libres</span></button><span class="sr" id="piso-det-3">Aparta-estudios y dos alcobas</span></li><li><button type="button" class="piso-fila" data-piso="2" aria-describedby="piso-det-2"><span class="piso-n">02</span><span class="piso-nombre">Piso 2</span><span class="piso-libres" data-vivo="piso-2">5 de 9 libres</span></button><span class="sr" id="piso-det-2">Aparta-estudios y dos alcobas</span></li><li><button type="button" class="piso-fila" data-piso="1" aria-describedby="piso-det-1"><span class="piso-n">01</span><span class="piso-nombre">Acceso y zonas comunes</span><span class="piso-libres" data-vivo="piso-1">Zonas comunes</span></button><span class="sr" id="piso-det-1">Lobby, coworking, gimnasio, salón social y dos locales</span></li></ol>
+        <a class="boton boton-oscuro con-flecha" href="showroom/index.html#piso-7" data-showroom="piso-7" data-contexto="el piso 7" id="piso-ir" data-magnetico><span class="txt">Ver este piso en el showroom</span><svg class="icono" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="showroom-entrada" class="banda-showroom" data-tono="oscuro" aria-labelledby="t-showroom">
+  <div class="banda-fijo">
+    <figure class="banda-marco" data-cursor="Entrar">
+      <img class="" src="img/ph-salon-1280.webp" srcset="img/ph-salon-640.webp 640w, img/ph-salon-1280.webp 1280w, img/ph-salon-1920.webp 1920w" sizes="100vw" width="1280" height="720" alt="Salón y comedor del penthouse con ventanales hacia la ciudad" loading="lazy" decoding="async">
+    </figure>
+    <div class="banda-velo" aria-hidden="true"></div>
+    <div class="envoltura banda-texto">
+      <p class="sobre claro"><span class="num">03</span><span class="raya"></span>Showroom virtual</p>
+      <h2 id="t-showroom" class="titulo-seccion claro" data-lineas>Recorre Mileto antes de que exista</h2>
+      <ol class="pasos-showroom"><li style="--k:0"><span class="paso-n">01</span><b>Fachada</b><span>Elige un piso sobre el edificio.</span></li><li style="--k:1"><span class="paso-n">02</span><b>Planta</b><span>Mira qué apartamentos siguen libres, en vivo.</span></li><li style="--k:2"><span class="paso-n">03</span><b>Apartamento</b><span>Áreas, estancias y precio de cada unidad.</span></li><li style="--k:3"><span class="paso-n">04</span><b>360°</b><span>Párate dentro de la sala, la cocina o la terraza.</span></li></ol>
+      <a class="boton boton-claro con-flecha" href="showroom/index.html#" data-showroom="" data-contexto="la fachada" data-magnetico><span class="txt">Entrar al showroom</span><svg class="icono" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+    </div>
+  </div>
+</section>
+
+<section id="ubicacion" class="seccion seccion-hueso" data-tono="claro" aria-labelledby="t-ubicacion">
+  <div class="envoltura ubicacion-rejilla">
+    <div>
+      <p class="sobre" data-revela><span class="num">04</span><span class="raya"></span>Ubicación</p><h2 class="titulo-seccion " id="t-ubicacion" data-lineas>Chapinero Alto, entre los cerros y la Séptima</h2>
+      <p class="parrafo" data-revela>Un barrio de calles en pendiente, árboles grandes y vida de barrio a pocos minutos de los principales ejes de la ciudad. Desde los pisos altos la vista se abre hacia los cerros orientales y hacia el occidente de Bogotá.</p>
+      <ul class="cercanias"><li data-revela style="--d:0.00s"><span>Carrera Séptima</span><b>3 min</b><small>a pie</small></li><li data-revela style="--d:0.06s"><span>Avenida Circunvalar</span><b>5 min</b><small>en carro</small></li><li data-revela style="--d:0.12s"><span>Zona G y Quinta Camacho</span><b>10 min</b><small>a pie</small></li><li data-revela style="--d:0.18s"><span>Universidad Javeriana</span><b>12 min</b><small>a pie</small></li><li data-revela style="--d:0.24s"><span>Parque Nacional</span><b>8 min</b><small>en carro</small></li><li data-revela style="--d:0.30s"><span>Centro financiero de la calle 72</span><b>10 min</b><small>en carro</small></li></ul>
+      <p class="nota" data-revela>Carrera 0 # 00-00, Chapinero Alto (dirección de ejemplo). Tiempos aproximados en condiciones normales de tráfico; referencia para la demostración.</p>
+    </div>
+    <figure class="mapa" data-revela aria-label="Esquema de ubicación de Mileto en Chapinero Alto">
+      <svg viewBox="0 0 520 440" class="mapa-svg" role="img" aria-labelledby="mapa-t">
+  <title id="mapa-t">Esquema: Mileto entre la carrera Séptima y la avenida Circunvalar, al pie de los cerros orientales</title>
+  <defs>
+    <pattern id="manzanas" width="34" height="34" patternUnits="userSpaceOnUse" patternTransform="rotate(-8)">
+      <rect x="3" y="3" width="28" height="28" rx="1" class="m-manzana"/>
+    </pattern>
+    <linearGradient id="cerro" x1="1" x2="0"><stop offset="0" class="m-cerro-a"/><stop offset="1" class="m-cerro-b"/></linearGradient>
+  </defs>
+  <rect width="520" height="440" class="m-fondo"/>
+  <rect width="520" height="440" fill="url(#manzanas)"/>
+  <path d="M380 0 C360 80 400 140 372 220 C350 290 392 360 370 440 L520 440 L520 0Z" fill="url(#cerro)"/>
+  <text x="470" y="60" class="m-zona" text-anchor="end">Cerros orientales</text>
+  <path d="M0 120 L520 98" class="m-calle dibuja"/><path d="M0 250 L520 228" class="m-calle dibuja"/><path d="M0 360 L520 338" class="m-calle dibuja"/>
+  <path d="M352 0 C336 90 372 150 344 230 C326 300 360 360 346 440" class="m-via m-via-2 dibuja"/>
+  <text x="336" y="330" class="m-via-t" transform="rotate(-80 336 330)">Av. Circunvalar</text>
+  <path d="M236 0 L210 440" class="m-via dibuja"/>
+  <text x="206" y="250" class="m-via-t" transform="rotate(-86 206 250)">Carrera Séptima</text>
+  <circle cx="262" cy="58" r="4" class="m-punto"/><text x="272" y="62" class="m-lugar">Zona G</text>
+  <circle cx="236" cy="330" r="4" class="m-punto"/><text x="246" y="334" class="m-lugar">U. Javeriana</text>
+  <circle cx="120" cy="70" r="4" class="m-punto"/><text x="130" y="74" class="m-lugar">Quinta Camacho</text>
+  <circle cx="262" cy="404" r="4" class="m-punto"/><text x="272" y="408" class="m-lugar">Parque Nacional</text>
+  <g class="m-aqui" transform="translate(288 180)">
+    <circle r="26" class="m-halo"/><circle r="7" class="m-centro"/>
+    <text y="-34" text-anchor="middle" class="m-nombre">Mileto</text>
+  </g>
+  <g transform="translate(40 60)" class="m-norte"><path d="M0 -18 L7 4 L0 0 L-7 4Z"/><text y="18" text-anchor="middle">N</text></g>
+</svg>
+      <figcaption class="nota">Esquema sin escala.</figcaption>
+    </figure>
+  </div>
+  <div class="marquesina" aria-hidden="true"><div class="marquesina-pista"><span>Chapinero Alto</span><i>✦</i><span>Cerros orientales</span><i>✦</i><span>Carrera Séptima</span><i>✦</i><span>Quinta Camacho</span><i>✦</i><span>Zona G</span><i>✦</i><span>Bogotá</span><i>✦</i><span>Chapinero Alto</span><i>✦</i><span>Cerros orientales</span><i>✦</i><span>Carrera Séptima</span><i>✦</i><span>Quinta Camacho</span><i>✦</i><span>Zona G</span><i>✦</i><span>Bogotá</span><i>✦</i></div></div>
+</section>
+
+<section id="tipologias" class="seccion seccion-hueso tipologias-seccion" data-tono="claro" aria-labelledby="t-tipologias">
+  <div class="envoltura cabeza-dos">
+    <div><p class="sobre" data-revela><span class="num">05</span><span class="raya"></span>Apartamentos</p><h2 class="titulo-seccion " id="t-tipologias" data-lineas>Tres maneras de vivir Mileto</h2></div>
+    <p class="parrafo" data-revela>Áreas privadas construidas según planos de ventas. Disponibilidad y precios al día desde la sala de ventas.</p>
+  </div>
+  <div class="tipologias-rejilla">
+    <div class="tipo-fijo" aria-hidden="true">
+      <div class="tipo-fotos"><figure class="tipo-foto activa" data-tipo-foto="estudio"><img class="" src="img/estudio-estar-1280.webp" srcset="img/estudio-estar-640.webp 640w, img/estudio-estar-1280.webp 1280w, img/estudio-estar-1920.webp 1920w" sizes="(max-width: 900px) 100vw, 50vw" width="1280" height="720" alt="Estar y alcoba del aparta-estudio, con balcón hacia la ciudad" loading="lazy" decoding="async"></figure><figure class="tipo-foto" data-tipo-foto="dos"><img class="" src="img/dos-social-1280.webp" srcset="img/dos-social-640.webp 640w, img/dos-social-1280.webp 1280w, img/dos-social-1920.webp 1920w" sizes="(max-width: 900px) 100vw, 50vw" width="1280" height="720" alt="Sala y comedor del apartamento de dos alcobas" loading="lazy" decoding="async"></figure><figure class="tipo-foto" data-tipo-foto="penthouse"><img class="" src="img/ph-terraza-1280.webp" srcset="img/ph-terraza-640.webp 640w, img/ph-terraza-1280.webp 1280w, img/ph-terraza-1920.webp 1920w" sizes="(max-width: 900px) 100vw, 50vw" width="1280" height="720" alt="Terraza del penthouse con vista a los cerros al anochecer" loading="lazy" decoding="async"></figure></div>
+      <p class="tipo-contador"><span data-tipo-actual>01</span> / 03</p>
+    </div>
+    <div class="tipo-bloques">
+      <article class="tipologia" id="tipo-estudio" data-tipologia="estudio" aria-labelledby="t-tipo-estudio">
+        <figure class="tipo-foto-movil marco-img" data-revela-img><img class="" src="img/estudio-estar-1280.webp" srcset="img/estudio-estar-640.webp 640w, img/estudio-estar-1280.webp 1280w, img/estudio-estar-1920.webp 1920w" sizes="100vw" width="1280" height="720" alt="Estar y alcoba del aparta-estudio, con balcón hacia la ciudad" loading="lazy" decoding="async"></figure>
+        <p class="tipo-indice" data-revela>01 <span>/ 03</span></p>
+        <h3 id="t-tipo-estudio" data-lineas>Aparta-estudio</h3>
+        <p class="tipologia-areas" data-revela><b data-contar="43.2">43,2 m²</b> privados
+          <span>+ 8,4 m² de balcón · Un ambiente · 1 baño</span></p>
+        <p class="parrafo" data-revela>Un ambiente amplio con cocina abierta, baño completo y balcón. Para quien vive solo, para quien invierte y para quien quiere estar cerca de todo.</p>
+        <dl class="tipologia-precio" data-revela>
+          <div><dt>Desde</dt><dd data-vivo="desde-estudio">$570 millones</dd></div>
+          <div><dt>Disponibles</dt><dd data-vivo="libres-estudio">17 de 25</dd></div>
+        </dl>
+        <div class="acciones" data-revela>
+          <a class="boton boton-oscuro con-flecha" href="showroom/index.html#apto-2-2" data-showroom="apto-2-2" data-contexto="el aparta-estudio 202" data-magnetico><span class="txt">Recorrer en el showroom</span><svg class="icono" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <button class="boton boton-linea" type="button" data-planta="estudio">Ver planta</button>
+          <button class="enlace-subrayado" type="button" data-cotizar="estudio">Cotizar</button>
+        </div>
+        <details class="unidades-libres" data-revela>
+          <summary>Elegir unidad en el showroom</summary>
+          <ul data-vivo="lista-estudio"><li><a class="chip" href="showroom/index.html#apto-2-2" data-showroom="apto-2-2" data-contexto="el apartamento 202">202<small>piso 2</small></a></li><li><a class="chip" href="showroom/index.html#apto-2-3" data-showroom="apto-2-3" data-contexto="el apartamento 203">203<small>piso 2</small></a></li><li><a class="chip" href="showroom/index.html#apto-3-3" data-showroom="apto-3-3" data-contexto="el apartamento 303">303<small>piso 3</small></a></li><li><a class="chip" href="showroom/index.html#apto-3-8" data-showroom="apto-3-8" data-contexto="el apartamento 308">308<small>piso 3</small></a></li><li><a class="chip" href="showroom/index.html#apto-4-2" data-showroom="apto-4-2" data-contexto="el apartamento 402">402<small>piso 4</small></a></li><li><a class="chip" href="showroom/index.html#apto-4-4" data-showroom="apto-4-4" data-contexto="el apartamento 404">404<small>piso 4</small></a></li><li><a class="chip" href="showroom/index.html#apto-4-8" data-showroom="apto-4-8" data-contexto="el apartamento 408">408<small>piso 4</small></a></li><li><a class="chip" href="showroom/index.html#apto-4-9" data-showroom="apto-4-9" data-contexto="el apartamento 409">409<small>piso 4</small></a></li><li><a class="chip" href="showroom/index.html#apto-5-2" data-showroom="apto-5-2" data-contexto="el apartamento 502">502<small>piso 5</small></a></li><li><a class="chip" href="showroom/index.html#apto-5-3" data-showroom="apto-5-3" data-contexto="el apartamento 503">503<small>piso 5</small></a></li><li><a class="chip" href="showroom/index.html#apto-5-4" data-showroom="apto-5-4" data-contexto="el apartamento 504">504<small>piso 5</small></a></li><li><a class="chip" href="showroom/index.html#apto-5-8" data-showroom="apto-5-8" data-contexto="el apartamento 508">508<small>piso 5</small></a></li><li><a class="chip" href="showroom/index.html#apto-5-9" data-showroom="apto-5-9" data-contexto="el apartamento 509">509<small>piso 5</small></a></li><li><a class="chip" href="showroom/index.html#apto-6-2" data-showroom="apto-6-2" data-contexto="el apartamento 602">602<small>piso 6</small></a></li><li><a class="chip" href="showroom/index.html#apto-6-3" data-showroom="apto-6-3" data-contexto="el apartamento 603">603<small>piso 6</small></a></li><li><a class="chip" href="showroom/index.html#apto-6-8" data-showroom="apto-6-8" data-contexto="el apartamento 608">608<small>piso 6</small></a></li><li><a class="chip" href="showroom/index.html#apto-6-9" data-showroom="apto-6-9" data-contexto="el apartamento 609">609<small>piso 6</small></a></li></ul>
+        </details>
+      </article>
+      <article class="tipologia" id="tipo-dos" data-tipologia="dos" aria-labelledby="t-tipo-dos">
+        <figure class="tipo-foto-movil marco-img" data-revela-img><img class="" src="img/dos-social-1280.webp" srcset="img/dos-social-640.webp 640w, img/dos-social-1280.webp 1280w, img/dos-social-1920.webp 1920w" sizes="100vw" width="1280" height="720" alt="Sala y comedor del apartamento de dos alcobas" loading="lazy" decoding="async"></figure>
+        <p class="tipo-indice" data-revela>02 <span>/ 03</span></p>
+        <h3 id="t-tipo-dos" data-lineas>Dos alcobas</h3>
+        <p class="tipologia-areas" data-revela><b data-contar="103.0">103,0 m²</b> privados
+          <span>+ 9,1 m² de balcón · 2 alcobas · 2 baños</span></p>
+        <p class="parrafo" data-revela>Sala y comedor de 28 m² hacia el ventanal, cocina independiente, alcoba principal con vestier y baño, segunda alcoba y zona de ropas.</p>
+        <dl class="tipologia-precio" data-revela>
+          <div><dt>Desde</dt><dd data-vivo="desde-dos">$1.175 millones</dd></div>
+          <div><dt>Disponibles</dt><dd data-vivo="libres-dos">11 de 20</dd></div>
+        </dl>
+        <div class="acciones" data-revela>
+          <a class="boton boton-oscuro con-flecha" href="showroom/index.html#apto-2-1" data-showroom="apto-2-1" data-contexto="el dos alcobas 201" data-magnetico><span class="txt">Recorrer en el showroom</span><svg class="icono" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <button class="boton boton-linea" type="button" data-planta="dos">Ver planta</button>
+          <button class="enlace-subrayado" type="button" data-cotizar="dos">Cotizar</button>
+        </div>
+        <details class="unidades-libres" data-revela>
+          <summary>Elegir unidad en el showroom</summary>
+          <ul data-vivo="lista-dos"><li><a class="chip" href="showroom/index.html#apto-2-1" data-showroom="apto-2-1" data-contexto="el apartamento 201">201<small>piso 2</small></a></li><li><a class="chip" href="showroom/index.html#apto-2-5" data-showroom="apto-2-5" data-contexto="el apartamento 205">205<small>piso 2</small></a></li><li><a class="chip" href="showroom/index.html#apto-2-7" data-showroom="apto-2-7" data-contexto="el apartamento 207">207<small>piso 2</small></a></li><li><a class="chip" href="showroom/index.html#apto-3-1" data-showroom="apto-3-1" data-contexto="el apartamento 301">301<small>piso 3</small></a></li><li><a class="chip" href="showroom/index.html#apto-3-6" data-showroom="apto-3-6" data-contexto="el apartamento 306">306<small>piso 3</small></a></li><li><a class="chip" href="showroom/index.html#apto-4-1" data-showroom="apto-4-1" data-contexto="el apartamento 401">401<small>piso 4</small></a></li><li><a class="chip" href="showroom/index.html#apto-4-5" data-showroom="apto-4-5" data-contexto="el apartamento 405">405<small>piso 4</small></a></li><li><a class="chip" href="showroom/index.html#apto-4-6" data-showroom="apto-4-6" data-contexto="el apartamento 406">406<small>piso 4</small></a></li><li><a class="chip" href="showroom/index.html#apto-5-6" data-showroom="apto-5-6" data-contexto="el apartamento 506">506<small>piso 5</small></a></li><li><a class="chip" href="showroom/index.html#apto-5-7" data-showroom="apto-5-7" data-contexto="el apartamento 507">507<small>piso 5</small></a></li><li><a class="chip" href="showroom/index.html#apto-6-1" data-showroom="apto-6-1" data-contexto="el apartamento 601">601<small>piso 6</small></a></li></ul>
+        </details>
+      </article>
+      <article class="tipologia" id="tipo-penthouse" data-tipologia="penthouse" aria-labelledby="t-tipo-penthouse">
+        <figure class="tipo-foto-movil marco-img" data-revela-img><img class="" src="img/ph-terraza-1280.webp" srcset="img/ph-terraza-640.webp 640w, img/ph-terraza-1280.webp 1280w, img/ph-terraza-1920.webp 1920w" sizes="100vw" width="1280" height="720" alt="Terraza del penthouse con vista a los cerros al anochecer" loading="lazy" decoding="async"></figure>
+        <p class="tipo-indice" data-revela>03 <span>/ 03</span></p>
+        <h3 id="t-tipo-penthouse" data-lineas>Penthouse</h3>
+        <p class="tipologia-areas" data-revela><b data-contar="218.9">218,9 m²</b> privados
+          <span>+ 57,2 m² de terraza y balcón · 3 alcobas · 3 baños y baño social</span></p>
+        <p class="parrafo" data-revela>El piso siete completo dividido en dos. Salón de 40 m², cocina con isla, tres alcobas, tres baños y baño social, y una terraza de 50 m² en dos frentes.</p>
+        <dl class="tipologia-precio" data-revela>
+          <div><dt>Desde</dt><dd data-vivo="desde-penthouse">$3.460 millones</dd></div>
+          <div><dt>Disponibles</dt><dd data-vivo="libres-penthouse">1 de 2</dd></div>
+        </dl>
+        <div class="acciones" data-revela>
+          <a class="boton boton-oscuro con-flecha" href="showroom/index.html#apto-7-1" data-showroom="apto-7-1" data-contexto="el penthouse PH A" data-magnetico><span class="txt">Recorrer en el showroom</span><svg class="icono" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+          <button class="boton boton-linea" type="button" data-planta="penthouse">Ver planta</button>
+          <button class="enlace-subrayado" type="button" data-cotizar="penthouse">Cotizar</button>
+        </div>
+        <details class="unidades-libres" data-revela>
+          <summary>Elegir unidad en el showroom</summary>
+          <ul data-vivo="lista-penthouse"><li><a class="chip" href="showroom/index.html#apto-7-1" data-showroom="apto-7-1" data-contexto="el apartamento PH A">PH A<small>piso 7</small></a></li></ul>
+        </details>
+      </article></div>
+  </div>
+</section>
+
+<section id="amenidades" class="seccion seccion-grafito" data-tono="oscuro" aria-labelledby="t-amenidades">
+  <div class="envoltura">
+    <div class="cabeza-dos">
+      <div><p class="sobre" data-revela><span class="num">06</span><span class="raya"></span>Zonas comunes</p><h2 class="titulo-seccion claro" id="t-amenidades" data-lineas>Un primer piso para el edificio y para el barrio</h2></div>
+      <p class="parrafo claro" data-revela>Más de 700 m² de zonas comunes en el primer piso, con acceso controlado y recepción.</p>
+    </div>
+    <figure class="plano-piso1" data-revela-img>
+      <img class="" src="img/piso-1-1280.webp" srcset="img/piso-1-640.webp 640w, img/piso-1-1280.webp 1280w, img/piso-1-1920.webp 1920w" sizes="(max-width: 1200px) 100vw, 1200px" width="1280" height="571" alt="Planta del primer piso con lobby, coworking, gimnasio, salón social y locales" loading="lazy" decoding="async">
+      <ul class="plano-marcas" aria-hidden="true"><li style="--x:43.2%;--y:71.7%;--k:0"><span>Lobby · recepción</span></li><li style="--x:14.9%;--y:80.3%;--k:1"><span>Local comercial 1</span></li><li style="--x:67.6%;--y:80.3%;--k:2"><span>Coworking</span></li><li style="--x:89.2%;--y:80.3%;--k:3"><span>Local comercial 2</span></li><li style="--x:14.9%;--y:31.8%;--k:4"><span>Gimnasio</span></li><li style="--x:50.0%;--y:31.8%;--k:5"><span>Salón social</span></li><li style="--x:85.1%;--y:31.8%;--k:6"><span>Lounge · sala de juntas</span></li><li style="--x:50.0%;--y:6.1%;--k:7"><span>Terraza del salón</span></li></ul>
+    </figure>
+    <div class="amenidades-pie">
+      <ul class="lista-areas" aria-label="Zonas del primer piso"><li data-revela style="--d:0.00s"><span>Lobby · recepción</span><b>103,2 m²</b></li><li data-revela style="--d:0.05s"><span>Local comercial 1</span><b>103,0 m²</b></li><li data-revela style="--d:0.10s"><span>Coworking</span><b>74,9 m²</b></li><li data-revela style="--d:0.15s"><span>Local comercial 2</span><b>74,9 m²</b></li><li data-revela style="--d:0.20s"><span>Gimnasio</span><b>103,0 m²</b></li><li data-revela style="--d:0.25s"><span>Salón social</span><b>140,4 m²</b></li><li data-revela style="--d:0.30s"><span>Lounge · sala de juntas</span><b>103,0 m²</b></li><li data-revela style="--d:0.35s"><span>Terraza del salón</span><b>43,2 m²</b></li></ul>
       <div>
-        <h2 class="serif" id="f-titulo"></h2>
-        <ul id="f-lista"></ul>
+        <ul class="lista-extra"><li data-revela><b>Parqueaderos</b><span>Dos sótanos con parqueaderos de carro y moto. Se compran aparte del apartamento.</span></li><li data-revela><b>Depósitos</b><span>Cuartos de depósito en sótano, según disponibilidad.</span></li><li data-revela><b>Bicicletas</b><span>Cicloparqueadero cubierto junto al acceso vehicular.</span></li></ul>
+        <a class="boton boton-claro con-flecha" href="showroom/index.html#piso-1" data-showroom="piso-1" data-contexto="el piso 1 y las zonas comunes" data-magnetico><span class="txt">Recorrer el piso 1 en el showroom</span><svg class="icono" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
       </div>
     </div>
-    <button class="boton" id="f-ver">Ver la planta</button>
-  </aside>
-  <div class="pista" id="pista-fachada">Pasa por un piso para verlo</div>
-</section>
-
-<section id="planta" class="vista" aria-label="Planta del piso">
-  <div class="barra">
-    <button class="volver" id="a-fachada">← Fachada</button>
-    <div class="titulo">
-      <div class="sobre" id="p-sobre"></div>
-      <h2 class="serif" id="p-titulo"></h2>
-    </div>
-    <button class="volver abre-buscador">Buscar</button>
-    <nav id="pisos" aria-label="Cambiar de piso"></nav>
-  </div>
-  <div class="campo" id="campo-planta">
-    <div id="lamina">
-      <img id="hoja-a" alt="">
-      <img id="hoja-b" alt="">
-      <div id="unidades" role="group" aria-label="Apartamentos del piso"></div>
-    </div>
-    <div id="rotulo"></div>
-    <div class="pista" id="pista-planta">Elige un apartamento</div>
-    <div id="leyenda"><span><i></i>Disponible</span><span><i class="apartado"></i>Reservado</span><span><i class="vendido"></i>Vendido</span></div>
   </div>
 </section>
 
-<section id="apto" class="vista" aria-label="Apartamento">
-  <div class="barra">
-    <button class="volver" id="a-planta">← Planta</button>
-    <div class="titulo">
-      <div class="sobre" id="u-sobre"></div>
-      <h2 class="serif" id="u-titulo"></h2>
+<section id="galeria" class="galeria-seccion seccion-hueso" data-tono="claro" aria-labelledby="t-galeria">
+  <div class="galeria-fijo">
+    <div class="envoltura galeria-cabeza">
+      <div><p class="sobre" data-revela><span class="num">07</span><span class="raya"></span>Galería</p><h2 class="titulo-seccion " id="t-galeria" data-lineas>Por dentro</h2></div>
+      <p class="nota">Imágenes de referencia. Acabados, mobiliario y decoración son ilustrativos.</p>
     </div>
-  </div>
-  <div class="campo">
-    <div id="escena-apto"><div id="corte"><img id="corte-img" alt=""></div></div>
-    <aside id="datos">
-      <div class="sobre" id="d-sobre"></div>
-      <h3 class="serif" id="d-titulo"></h3>
-      <div class="cifras" id="d-cifras"></div>
-      <ul id="estancias"></ul>
-      <div id="reserva"></div>
-      <div id="acciones"></div>
-      <p id="nota-demo"></p>
-    </aside>
+    <ul class="galeria-pista"><li><button type="button" class="foto" data-visor="0" data-img="dos-social" data-hash="apto-2-1-social" data-titulo="Sala y comedor · dos alcobas" data-cursor="Ampliar" aria-label="Ampliar: Sala y comedor · dos alcobas"><span class="foto-marco"><img class="" src="img/dos-social-1280.webp" srcset="img/dos-social-640.webp 640w, img/dos-social-1280.webp 1280w" sizes="(max-width: 700px) 80vw, 40vw" width="1280" height="720" alt="Sala y comedor · dos alcobas" loading="lazy" decoding="async"></span><span class="foto-pie"><span class="foto-n">01</span>Sala y comedor · dos alcobas</span></button></li><li><button type="button" class="foto" data-visor="1" data-img="ph-terraza" data-hash="apto-7-1-terraza" data-titulo="Terraza · penthouse" data-cursor="Ampliar" aria-label="Ampliar: Terraza · penthouse"><span class="foto-marco"><img class="" src="img/ph-terraza-1280.webp" srcset="img/ph-terraza-640.webp 640w, img/ph-terraza-1280.webp 1280w" sizes="(max-width: 700px) 80vw, 40vw" width="1280" height="720" alt="Terraza · penthouse" loading="lazy" decoding="async"></span><span class="foto-pie"><span class="foto-n">02</span>Terraza · penthouse</span></button></li><li><button type="button" class="foto" data-visor="2" data-img="estudio-estar" data-hash="apto-2-2-estar" data-titulo="Estar y alcoba · aparta-estudio" data-cursor="Ampliar" aria-label="Ampliar: Estar y alcoba · aparta-estudio"><span class="foto-marco"><img class="" src="img/estudio-estar-1280.webp" srcset="img/estudio-estar-640.webp 640w, img/estudio-estar-1280.webp 1280w" sizes="(max-width: 700px) 80vw, 40vw" width="1280" height="720" alt="Estar y alcoba · aparta-estudio" loading="lazy" decoding="async"></span><span class="foto-pie"><span class="foto-n">03</span>Estar y alcoba · aparta-estudio</span></button></li><li><button type="button" class="foto" data-visor="3" data-img="ph-salon" data-hash="apto-7-1-salon" data-titulo="Salón y comedor · penthouse" data-cursor="Ampliar" aria-label="Ampliar: Salón y comedor · penthouse"><span class="foto-marco"><img class="" src="img/ph-salon-1280.webp" srcset="img/ph-salon-640.webp 640w, img/ph-salon-1280.webp 1280w" sizes="(max-width: 700px) 80vw, 40vw" width="1280" height="720" alt="Salón y comedor · penthouse" loading="lazy" decoding="async"></span><span class="foto-pie"><span class="foto-n">04</span>Salón y comedor · penthouse</span></button></li><li><button type="button" class="foto" data-visor="4" data-img="dos-cocina" data-hash="apto-2-1-cocina" data-titulo="Cocina · dos alcobas" data-cursor="Ampliar" aria-label="Ampliar: Cocina · dos alcobas"><span class="foto-marco"><img class="" src="img/dos-cocina-1280.webp" srcset="img/dos-cocina-640.webp 640w, img/dos-cocina-1280.webp 1280w" sizes="(max-width: 700px) 80vw, 40vw" width="1280" height="720" alt="Cocina · dos alcobas" loading="lazy" decoding="async"></span><span class="foto-pie"><span class="foto-n">05</span>Cocina · dos alcobas</span></button></li><li><button type="button" class="foto" data-visor="5" data-img="ph-alcoba1" data-hash="apto-7-1-alcoba1" data-titulo="Alcoba principal · penthouse" data-cursor="Ampliar" aria-label="Ampliar: Alcoba principal · penthouse"><span class="foto-marco"><img class="" src="img/ph-alcoba1-1280.webp" srcset="img/ph-alcoba1-640.webp 640w, img/ph-alcoba1-1280.webp 1280w" sizes="(max-width: 700px) 80vw, 40vw" width="1280" height="720" alt="Alcoba principal · penthouse" loading="lazy" decoding="async"></span><span class="foto-pie"><span class="foto-n">06</span>Alcoba principal · penthouse</span></button></li><li><button type="button" class="foto" data-visor="6" data-img="dos-alcoba1" data-hash="apto-2-1-alcoba1" data-titulo="Alcoba principal · dos alcobas" data-cursor="Ampliar" aria-label="Ampliar: Alcoba principal · dos alcobas"><span class="foto-marco"><img class="" src="img/dos-alcoba1-1280.webp" srcset="img/dos-alcoba1-640.webp 640w, img/dos-alcoba1-1280.webp 1280w" sizes="(max-width: 700px) 80vw, 40vw" width="1280" height="720" alt="Alcoba principal · dos alcobas" loading="lazy" decoding="async"></span><span class="foto-pie"><span class="foto-n">07</span>Alcoba principal · dos alcobas</span></button></li><li><button type="button" class="foto" data-visor="7" data-img="estudio-cocina" data-hash="apto-2-2-cocina" data-titulo="Cocina · aparta-estudio" data-cursor="Ampliar" aria-label="Ampliar: Cocina · aparta-estudio"><span class="foto-marco"><img class="" src="img/estudio-cocina-1280.webp" srcset="img/estudio-cocina-640.webp 640w, img/estudio-cocina-1280.webp 1280w" sizes="(max-width: 700px) 80vw, 40vw" width="1280" height="720" alt="Cocina · aparta-estudio" loading="lazy" decoding="async"></span><span class="foto-pie"><span class="foto-n">08</span>Cocina · aparta-estudio</span></button></li><li><button type="button" class="foto" data-visor="8" data-img="ph-cocina" data-hash="apto-7-1-cocina" data-titulo="Cocina · penthouse" data-cursor="Ampliar" aria-label="Ampliar: Cocina · penthouse"><span class="foto-marco"><img class="" src="img/ph-cocina-1280.webp" srcset="img/ph-cocina-640.webp 640w, img/ph-cocina-1280.webp 1280w" sizes="(max-width: 700px) 80vw, 40vw" width="1280" height="720" alt="Cocina · penthouse" loading="lazy" decoding="async"></span><span class="foto-pie"><span class="foto-n">09</span>Cocina · penthouse</span></button></li><li><button type="button" class="foto" data-visor="9" data-img="dos-bano1" data-hash="apto-2-1-bano1" data-titulo="Baño principal · dos alcobas" data-cursor="Ampliar" aria-label="Ampliar: Baño principal · dos alcobas"><span class="foto-marco"><img class="" src="img/dos-bano1-1280.webp" srcset="img/dos-bano1-640.webp 640w, img/dos-bano1-1280.webp 1280w" sizes="(max-width: 700px) 80vw, 40vw" width="1280" height="720" alt="Baño principal · dos alcobas" loading="lazy" decoding="async"></span><span class="foto-pie"><span class="foto-n">10</span>Baño principal · dos alcobas</span></button></li><li><button type="button" class="foto" data-visor="10" data-img="ph-bano1" data-hash="apto-7-1-bano1" data-titulo="Baño principal · penthouse" data-cursor="Ampliar" aria-label="Ampliar: Baño principal · penthouse"><span class="foto-marco"><img class="" src="img/ph-bano1-1280.webp" srcset="img/ph-bano1-640.webp 640w, img/ph-bano1-1280.webp 1280w" sizes="(max-width: 700px) 80vw, 40vw" width="1280" height="720" alt="Baño principal · penthouse" loading="lazy" decoding="async"></span><span class="foto-pie"><span class="foto-n">11</span>Baño principal · penthouse</span></button></li><li><button type="button" class="foto" data-visor="11" data-img="estudio-bano" data-hash="apto-2-2-bano" data-titulo="Baño · aparta-estudio" data-cursor="Ampliar" aria-label="Ampliar: Baño · aparta-estudio"><span class="foto-marco"><img class="" src="img/estudio-bano-1280.webp" srcset="img/estudio-bano-640.webp 640w, img/estudio-bano-1280.webp 1280w" sizes="(max-width: 700px) 80vw, 40vw" width="1280" height="720" alt="Baño · aparta-estudio" loading="lazy" decoding="async"></span><span class="foto-pie"><span class="foto-n">12</span>Baño · aparta-estudio</span></button></li></ul>
+    <div class="envoltura galeria-progreso" aria-hidden="true"><i></i></div>
   </div>
 </section>
 
-<section id="estancia" class="vista" aria-label="Estancia">
-  <div id="foto-estancia">
-    <img id="foto-a" alt="">
-    <img id="foto-b" alt="">
-  </div>
-  <canvas id="pano" aria-label="Vista de 360 grados; arrastra para mirar alrededor"></canvas>
-  <div class="velo"></div>
-  <div id="saltos"></div>
-  <div class="pista" id="pista-pano">Arrastra para mirar alrededor</div>
-  <div class="barra">
-    <button class="volver" id="a-apto">← Apartamento</button>
-    <div class="titulo">
-      <div class="sobre" id="e-sobre"></div>
-      <h2 class="serif" id="e-titulo"></h2>
+<section id="financiacion" class="seccion seccion-arena" data-tono="claro" aria-labelledby="t-financiacion">
+  <div class="envoltura fin-rejilla">
+    <div>
+      <p class="sobre" data-revela><span class="num">08</span><span class="raya"></span>Financiación</p><h2 class="titulo-seccion " id="t-financiacion" data-lineas>Paga la cuota inicial mientras se construye</h2>
+      <p class="parrafo" data-revela>Separa tu apartamento, paga la cuota inicial en cuotas mensuales durante la obra y financia el saldo con el banco de tu preferencia al momento de la entrega.</p>
+      <ol class="pasos-fin"><li data-revela style="--d:0.00s"><span class="paso-n">01</span><b>Separación</b><span>Con un pago de separación tu apartamento sale de la venta.</span></li><li data-revela style="--d:0.08s"><span class="paso-n">02</span><b>Cuota inicial</b><span>El porcentaje pactado, en cuotas mensuales hasta la entrega. Puedes abonar con cesantías.</span></li><li data-revela style="--d:0.16s"><span class="paso-n">03</span><b>Saldo</b><span>Crédito hipotecario o leasing habitacional con la entidad que elijas, a la entrega.</span></li></ol>
     </div>
-  </div>
-  <nav id="pestanas" aria-label="Cambiar de estancia"></nav>
-</section>
-
-<div id="buscador" class="capa" role="dialog" aria-modal="true" aria-label="Buscar apartamento" inert>
-  <div class="hoja">
-    <header>
-      <div><div class="sobre" id="b-sobre"></div><h2 class="serif" id="b-titulo">Encuentra tu apartamento</h2></div>
-      <button class="volver cerrar">Cerrar</button>
-    </header>
-    <div class="filtros">
-      <div class="chips" id="b-tipos" role="group" aria-label="Tipología"></div>
-      <label>Piso <select id="b-piso"></select></label>
-      <label>Hasta <input type="range" id="b-tope"> <b id="b-tope-txt"></b></label>
-      <label><input type="checkbox" id="b-libres" checked> Solo disponibles</label>
-      <label><input type="checkbox" id="b-favoritos"> Mis favoritos</label>
-    </div>
-    <div class="cuerpo resultados">
-      <div id="b-cuenta" aria-live="polite"></div>
-      <div id="b-lista"></div>
-    </div>
-    <div class="cuerpo comparacion"><table class="tabla" id="b-tabla"></table></div>
-    <div class="pie">
-      <span id="b-nota">Marca hasta 3 apartamentos para compararlos</span>
-      <button class="boton" id="b-comparar" disabled>Comparar</button>
-    </div>
-  </div>
-</div>
-
-<div id="panel-crm" class="capa" role="dialog" aria-modal="true" aria-label="Panel de asesores" inert>
-  <div class="hoja">
-    <header>
-      <div><div class="sobre">Acceso asesores · demostración</div><h2 class="serif">Panel de ventas y cartera</h2></div>
-      <button class="volver cerrar">Volver al showroom</button>
-    </header>
-    <iframe id="marco-crm" title="Panel de ventas y cartera"></iframe>
-  </div>
-</div>
-
-<div id="cotizador" class="capa" role="dialog" aria-modal="true" aria-label="Cotización" inert>
-  <div class="hoja">
-    <header>
-      <div><div class="sobre" id="q-sobre"></div><h2 class="serif" id="q-titulo"></h2></div>
-      <button class="volver cerrar no-papel">Cerrar</button>
-    </header>
-    <div class="cuerpo">
-      <div class="ajustes no-papel">
-        <label>Cuota inicial <b id="q-inicial-txt"></b><input type="range" id="q-inicial" min="10" max="50" step="5"></label>
-        <label>Meses para pagarla <b id="q-meses-txt"></b><input type="range" id="q-meses" min="6" max="36" step="1"></label>
-        <label>Plazo del crédito <b id="q-anios-txt"></b><input type="range" id="q-anios" min="5" max="20" step="1"></label>
-        <label>Tasa efectiva anual (%) <input type="number" id="q-tasa" min="0" max="30" step="0.1"></label>
+    <form class="cotizador" id="cotizador" novalidate aria-labelledby="t-cotizador" data-revela>
+      <div class="cotizador-cabeza">
+        <h3 id="t-cotizador">Cotiza tu apartamento</h3>
+        <label class="campo">Apartamento
+          <select name="unidad" id="q-unidad" data-vivo="opciones"><optgroup label="Aparta-estudio"><option value="202">202 · piso 2 · $570 millones</option><option value="203">203 · piso 2 · $570 millones</option><option value="303">303 · piso 3 · $575 millones</option><option value="308">308 · piso 3 · $575 millones</option><option value="402">402 · piso 4 · $580 millones</option><option value="404">404 · piso 4 · $580 millones</option><option value="408">408 · piso 4 · $580 millones</option><option value="409">409 · piso 4 · $580 millones</option><option value="502">502 · piso 5 · $590 millones</option><option value="503">503 · piso 5 · $590 millones</option><option value="504">504 · piso 5 · $590 millones</option><option value="508">508 · piso 5 · $590 millones</option><option value="509">509 · piso 5 · $590 millones</option><option value="602">602 · piso 6 · $595 millones</option><option value="603">603 · piso 6 · $595 millones</option><option value="608">608 · piso 6 · $595 millones</option><option value="609">609 · piso 6 · $595 millones</option></optgroup><optgroup label="Dos alcobas"><option value="201" selected>201 · piso 2 · $1.175 millones</option><option value="205">205 · piso 2 · $1.175 millones</option><option value="207">207 · piso 2 · $1.175 millones</option><option value="301">301 · piso 3 · $1.185 millones</option><option value="306">306 · piso 3 · $1.185 millones</option><option value="401">401 · piso 4 · $1.200 millones</option><option value="405">405 · piso 4 · $1.200 millones</option><option value="406">406 · piso 4 · $1.200 millones</option><option value="506">506 · piso 5 · $1.215 millones</option><option value="507">507 · piso 5 · $1.215 millones</option><option value="601">601 · piso 6 · $1.230 millones</option></optgroup><optgroup label="Penthouse"><option value="PH A">PH A · piso 7 · $3.460 millones</option></optgroup></select>
+        </label>
       </div>
-      <table class="tabla" id="q-tabla"></table>
-      <p class="letra" id="q-letra"></p>
-      <form id="q-form" class="no-papel">
-        <input class="entrada" name="nombre" placeholder="Nombre" maxlength="60" autocomplete="off" required>
-        <input class="entrada" name="telefono" placeholder="Celular" maxlength="24" inputmode="tel" autocomplete="off" required>
-        <button class="boton" type="submit">Que me contacte un asesor</button>
-      </form>
-      <p class="letra no-papel">Demostración: los datos viajan al CRM simulado junto con esta cotización y no se guardan en ningún sistema real.</p>
+      <div class="cotizador-ajustes">
+        <label class="campo deslizador">Cuota inicial <output id="q-inicial-txt">30 %</output><input type="range" name="inicial" id="q-inicial" min="10" max="50" step="5" value="30"></label>
+        <label class="campo deslizador">Meses para pagarla <output id="q-meses-txt">24 meses</output><input type="range" name="meses" id="q-meses" min="6" max="36" step="1" value="24"></label>
+        <label class="campo deslizador">Plazo del crédito <output id="q-anios-txt">15 años</output><input type="range" name="anios" id="q-anios" min="5" max="20" step="1" value="15"></label>
+        <label class="campo deslizador">Tasa efectiva anual <output id="q-tasa-txt">12 %</output><input type="range" name="tasa" id="q-tasa" min="6" max="20" step="0.5" value="12"></label>
+      </div>
+      <div class="cotizador-destacado" aria-live="polite">
+        <div><small>Cuota mensual en obra</small><b data-q="cuotaObra">—</b></div>
+        <div><small>Cuota estimada del crédito</small><b data-q="cuota">—</b></div>
+      </div>
+      <dl class="resultado" id="q-resultado">
+        <div><dt>Precio</dt><dd data-q="precio">—</dd></div>
+        <div><dt>Separación</dt><dd data-q="separacion">—</dd></div>
+        <div><dt>Cuota inicial</dt><dd data-q="inicial">—</dd></div>
+        <div><dt>Saldo a financiar</dt><dd data-q="credito">—</dd></div>
+        <div><dt>Ingresos sugeridos</dt><dd data-q="ingresos">—</dd></div>
+      </dl>
+      <p class="nota">Simulación de referencia. La tasa y el plazo del crédito los define la entidad financiera; la cuota inicial y los plazos de obra se pactan con la constructora.</p>
+      <fieldset class="recibir">
+        <legend>Recibe esta cotización y que un asesor te contacte</legend>
+        <div class="fila-campos">
+          <label class="campo">Nombre<input name="nombre" autocomplete="name" maxlength="80" required></label>
+          <label class="campo">Celular<input name="telefono" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" required></label>
+        </div>
+        <label class="campo">Correo (opcional)<input name="correo" type="email" autocomplete="email" maxlength="120"></label>
+        <label class="consentimiento"><input type="checkbox" name="consentimiento" required> <span>Autorizo el tratamiento de mis datos personales para recibir información de este proyecto, conforme a la Ley 1581 de 2012 y a la política de tratamiento de datos de la constructora.</span></label>
+        <div class="acciones">
+          <button class="boton boton-oscuro con-flecha" type="submit"><span class="txt">Enviar cotización</span><svg class="icono" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <a class="boton boton-linea" href="showroom/index.html#apto-2-1" data-showroom="apto-2-1" data-contexto="la unidad cotizada" id="q-ver">Ver esta unidad <svg class="icono" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 12c0 2.2 4 4 9 4s9-1.8 9-4-4-4-9-4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="m10 6 2 2-2 2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+        </div>
+        <p class="estado-form" role="status" aria-live="polite"></p>
+        <p class="nota nota-demo">Demostración simulada: los datos no salen de tu navegador y nadie te contactará.</p>
+      </fieldset>
+    </form>
+  </div>
+</section>
+
+<section id="avance" class="seccion seccion-hueso" data-tono="claro" aria-labelledby="t-avance">
+  <div class="envoltura avance-rejilla">
+    <div>
+      <p class="sobre" data-revela><span class="num">09</span><span class="raya"></span>Avance de obra</p><h2 class="titulo-seccion " id="t-avance" data-lineas>Dónde va Mileto</h2>
+      <p class="parrafo" data-revela>Mileto está en preventa. Los recursos de los compradores se manejan en una fiducia hasta alcanzar el punto de equilibrio comercial; después empieza la obra.</p>
+      <div class="equilibrio" data-revela data-meta="60">
+        <p class="equilibrio-cifra"><b data-vivo="equilibrio-num">38 %</b><span>de las unidades vendidas o separadas</span></p>
+        <div class="equilibrio-barra" role="img" aria-label="Ventas frente a la meta de punto de equilibrio"><i data-vivo="equilibrio" style="--pct:38%"></i><span class="meta" style="--pct:60%"><em>Punto de equilibrio · 60 %</em></span></div>
+      </div>
+      <p class="nota">Fechas de ejemplo para la demostración.</p>
     </div>
-    <div class="pie no-papel solo-web">
-      <button class="boton" id="q-pdf">Guardar en PDF</button>
-      <button class="boton" id="q-whatsapp">Enviar por WhatsApp</button>
+    <ol class="linea-tiempo"><span class="linea-progreso" aria-hidden="true"></span><li class="etapa hecho" data-revela style="--d:0.00s"><span class="etapa-punto"></span><b>Lanzamiento y preventa</b><span>Marzo 2026</span></li><li class="etapa hecho" data-revela style="--d:0.06s"><span class="etapa-punto"></span><b>Licencia de construcción</b><span>Agosto 2026</span></li><li class="etapa actual" data-revela style="--d:0.12s"><span class="etapa-punto"></span><b>Punto de equilibrio comercial</b><span>En curso</span><small data-vivo="equilibrio-txt">38 % vendido · meta 60 %</small></li><li class="etapa pendiente" data-revela style="--d:0.18s"><span class="etapa-punto"></span><b>Inicio de obra</b><span>Primer semestre 2027</span></li><li class="etapa pendiente" data-revela style="--d:0.24s"><span class="etapa-punto"></span><b>Estructura y cubierta</b><span>2027</span></li><li class="etapa pendiente" data-revela style="--d:0.30s"><span class="etapa-punto"></span><b>Acabados y zonas comunes</b><span>Primer semestre 2028</span></li><li class="etapa pendiente" data-revela style="--d:0.36s"><span class="etapa-punto"></span><b>Entrega de apartamentos</b><span>Segundo semestre 2028</span></li></ol>
+  </div>
+</section>
+
+<section id="preguntas" class="seccion seccion-arena" data-tono="claro" aria-labelledby="t-preguntas">
+  <div class="envoltura preguntas-rejilla">
+    <div><p class="sobre" data-revela><span class="num">10</span><span class="raya"></span>Preguntas frecuentes</p><h2 class="titulo-seccion " id="t-preguntas" data-lineas>Lo que más nos preguntan</h2></div>
+    <div class="acordeon"><details data-revela><summary><span class="q-n">01</span>¿Cuándo se entregan los apartamentos?<i aria-hidden="true"></i></summary><div class="respuesta"><p>La entrega está prevista para el segundo semestre de 2028. La fecha exacta queda en tu promesa de compraventa.</p></div></details><details data-revela><summary><span class="q-n">02</span>¿Cómo separo un apartamento?<i aria-hidden="true"></i></summary><div class="respuesta"><p>Eliges la unidad, firmas el formato de separación y haces el pago de separación a la fiducia del proyecto. Desde ese momento la unidad queda a tu nombre mientras se firma la promesa.</p></div></details><details data-revela><summary><span class="q-n">03</span>¿Dónde queda mi dinero mientras empieza la obra?<i aria-hidden="true"></i></summary><div class="respuesta"><p>En un encargo fiduciario a nombre del proyecto. La fiduciaria entrega los recursos a la constructora solo cuando el proyecto cumple el punto de equilibrio: ventas mínimas, licencia y financiación de la obra.</p></div></details><details data-revela><summary><span class="q-n">04</span>¿Puedo pagar la cuota inicial con cesantías?<i aria-hidden="true"></i></summary><div class="respuesta"><p>Sí. Puedes abonar cesantías y recursos de cuentas AFC a la cuota inicial. Te damos la certificación que pide tu fondo.</p></div></details><details data-revela><summary><span class="q-n">05</span>¿Los parqueaderos están incluidos?<i aria-hidden="true"></i></summary><div class="respuesta"><p>No. Los parqueaderos de carro y de moto se compran aparte, según disponibilidad en los dos sótanos.</p></div></details><details data-revela><summary><span class="q-n">06</span>¿Puedo comprar si vivo fuera de Colombia?<i aria-hidden="true"></i></summary><div class="respuesta"><p>Sí. Atendemos por videollamada, firmas con poder o de forma digital y puedes pagar desde el exterior a la fiducia como inversión extranjera.</p></div></details><details data-revela><summary><span class="q-n">07</span>¿Hay subsidio de vivienda?<i aria-hidden="true"></i></summary><div class="respuesta"><p>Mileto es vivienda No VIS, así que no aplica a subsidios de vivienda de interés social. Sí aplica a crédito hipotecario y leasing habitacional.</p></div></details><details data-revela><summary><span class="q-n">08</span>¿Se permiten mascotas?<i aria-hidden="true"></i></summary><div class="respuesta"><p>Sí, según el reglamento de propiedad horizontal que se entrega con la promesa.</p></div></details></div>
+  </div>
+</section>
+
+<section id="contacto" class="seccion seccion-grafito contacto-seccion" data-tono="oscuro" aria-labelledby="t-contacto_seccion">
+  <div class="envoltura">
+    <p class="sobre claro" data-revela><span class="num">11</span><span class="raya"></span>Contacto</p>
+    <h2 class="cierre-titulo" id="t-contacto_seccion" data-lineas>Hablemos</h2>
+    <div class="contacto-rejilla">
+      <div>
+        <p class="parrafo claro" data-revela>Ven a la sala de ventas, recorre el showroom con un asesor o escríbenos. Te respondemos en horario de sala.</p>
+        <ul class="datos-contacto">
+          <li data-revela><small>Sala de ventas</small><span>Sala de ventas Mileto · Carrera 0 # 00-00, Chapinero Alto (dirección de ejemplo)</span></li>
+          <li data-revela><small>Horario</small><span>Lunes a viernes de 9:00 a 18:00 · sábados de 9:00 a 15:00 · domingos de 10:00 a 14:00</span></li>
+          <li data-revela><small>Teléfono</small><span>300 000 0000 (número de ejemplo)</span></li>
+          <li data-revela><small>Correo</small><span>ventas@constructora.example.com</span></li>
+        </ul>
+        <div class="agente-demo"><a class="boton boton-claro con-flecha" href="agente/index.html" data-whatsapp target="_blank" rel="noopener"><svg class="icono" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.1l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.3-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .1-1.3c0-.1-.2-.2-.5-.3Z" fill="currentColor"/></svg><span class="txt">Ver cómo atiende el agente de WhatsApp</span></a><p class="nota claro">Simulación del agente que contesta la línea de WhatsApp de la constructora. Arranca con lo que estabas viendo en la página.</p></div>
+      </div>
+      <div class="formularios" data-revela>
+        <div class="pestanas" role="tablist" aria-label="Tipo de contacto">
+          <button role="tab" id="pes-contacto" aria-controls="form-contacto" aria-selected="true" type="button">Escríbenos</button>
+          <button role="tab" id="pes-visita" aria-controls="form-visita" aria-selected="false" type="button" tabindex="-1">Agenda una visita</button>
+          <span class="pestana-marca" aria-hidden="true"></span>
+        </div>
+        <form id="form-contacto" role="tabpanel" aria-labelledby="pes-contacto" novalidate>
+          <div class="fila-campos">
+            <label class="campo">Nombre<input name="nombre" autocomplete="name" maxlength="80" required></label>
+            <label class="campo">Celular<input name="telefono" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" required></label>
+          </div>
+          <label class="campo">Correo (opcional)<input name="correo" type="email" autocomplete="email" maxlength="120"></label>
+          <label class="campo">Me interesa<select name="tipologia"><option value="">Todavía no lo sé</option><option value="estudio">Aparta-estudio</option><option value="dos">Dos alcobas</option><option value="penthouse">Penthouse</option></select></label>
+          <label class="campo">Mensaje (opcional)<textarea name="mensaje" rows="3" maxlength="600"></textarea></label>
+          <label class="consentimiento"><input type="checkbox" name="consentimiento" required> <span>Autorizo el tratamiento de mis datos personales para recibir información de este proyecto, conforme a la Ley 1581 de 2012 y a la política de tratamiento de datos de la constructora.</span></label>
+          <button class="boton boton-claro con-flecha" type="submit"><span class="txt">Enviar</span><svg class="icono" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <p class="estado-form" role="status" aria-live="polite"></p>
+          <p class="nota claro nota-demo">Demostración simulada: los datos no salen de tu navegador y nadie te contactará.</p>
+        </form>
+        <form id="form-visita" role="tabpanel" aria-labelledby="pes-visita" novalidate hidden>
+          <div class="fila-campos">
+            <label class="campo">Nombre<input name="nombre" autocomplete="name" maxlength="80" required></label>
+            <label class="campo">Celular<input name="telefono" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" required></label>
+          </div>
+          <div class="fila-campos">
+            <label class="campo">Día<input name="fecha" type="date" required></label>
+            <label class="campo">Hora<select name="hora" required><option value="">Elige el día primero</option></select></label>
+          </div>
+          <label class="campo">Me interesa<select name="tipologia"><option value="">Todavía no lo sé</option><option value="estudio">Aparta-estudio</option><option value="dos">Dos alcobas</option><option value="penthouse">Penthouse</option></select></label>
+          <label class="consentimiento"><input type="checkbox" name="consentimiento" required> <span>Autorizo el tratamiento de mis datos personales para recibir información de este proyecto, conforme a la Ley 1581 de 2012 y a la política de tratamiento de datos de la constructora.</span></label>
+          <button class="boton boton-claro con-flecha" type="submit"><span class="txt">Agendar visita</span><svg class="icono" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <p class="estado-form" role="status" aria-live="polite"></p>
+          <p class="nota claro nota-demo">Demostración simulada: los datos no salen de tu navegador y nadie te contactará.</p>
+        </form>
+      </div>
     </div>
   </div>
-</div>
-
-<div id="avisos" aria-live="polite"></div>
-
-<script src="crm.js"></script>
-<script>
-(() => {
-  // Lo que hay en cada piso. Las cifras salen de `edificio_piloto.py`.
-  const TIPO = { titulo: "Planta tipo", planta: "piso-tipo",
-    lista: ["9 apartamentos", "4 de dos alcobas · 103 m²", "5 aparta-estudios · 43 m²"] };
-  const PISOS = {
-    1: { titulo: "Acceso y zonas comunes", planta: "piso-1",
-         lista: ["Lobby con recepción", "Coworking, gimnasio y salón social", "2 locales comerciales"] },
-    2: TIPO, 3: TIPO, 4: TIPO, 5: TIPO, 6: TIPO,
-    7: { titulo: "Penthouses", planta: "piso-7",
-         lista: ["2 penthouses · 219 m²", "3 alcobas, 3 baños y baño social", "Terraza en dos frentes"] },
-  };
-  const PROPORCION = 16 / 9;
-  const SVG = "http://www.w3.org/2000/svg";
-  const $ = (id) => document.getElementById(id);
-  const m2 = (v) => String(v).replace(".", ",") + " m²";
-  const cuerpo = document.body, marco = $("marco"), lamina = $("lamina");
-  const ficha = $("ficha"), guia = $("guia"), rotulo = $("rotulo");
-  const tactil = window.matchMedia("(hover: none)").matches;
-
-  let PLANTAS = {}, TIPOLOGIAS = {}, DATOS = { unidades: {} };
-  const ESTADO = { disponible: "Disponible", apartado: "Reservado", vendido: "Vendido" };
-  const pesos = (v) => "$" + Math.round(v / 1e6).toLocaleString("es-CO") + " millones";
-  const unidad = (piso, u) => DATOS.unidades[numeroDe(piso, u)] || {};
-  let franjas = {};            // piso -> { el, caja }
-  let pisoActivo = null;       // franja resaltada en la fachada
-  let pisoEnPlanta = null;
-  let unidadActiva = null;     // zona resaltada en la planta
-  let unidadAbierta = null;
-  const vista = () => cuerpo.dataset.vista;
-
-  // ============ fachada ==============================================================
-  function encajarFachada() {
-    const vw = window.innerWidth, vh = window.innerHeight;
-    let w = Math.max(vw, vh * PROPORCION);          // cubrir
-    // El edificio ocupa el 60 % central de la imagen: en una pantalla vertical
-    // cubrir del todo lo cortaria. Se limita para que ese tramo quepa entero.
-    w = Math.min(w, vw / 0.66);
-    marco.style.width = w + "px";
-    marco.style.height = (w / PROPORCION) + "px";
-    if (pisoActivo) situarFicha(pisoActivo);
-  }
-
-  function situarFicha(piso) {
-    if (window.innerWidth <= 760) return;           // en movil la ficha va anclada abajo
-    const r = marco.getBoundingClientRect(), c = franjas[piso].caja;
-    const b = { x0: r.left + c[0] * r.width, y0: r.top + c[1] * r.height,
-                x1: r.left + c[2] * r.width, y1: r.top + c[3] * r.height };
-    const f = ficha.getBoundingClientRect(), cy = (b.y0 + b.y1) / 2;
-    let x = b.x1 + 46, alLado = true;
-    if (x + f.width > window.innerWidth - 16) { x = b.x0 - 46 - f.width; alLado = false; }
-    if (x < 16) {
-      // No cabe a ningun lado del edificio: se va a la esquina del cielo, sin
-      // linea. Encima de la fachada taparia los pisos de al lado.
-      ficha.style.left = (window.innerWidth - f.width - 16) + "px";
-      ficha.style.top = "16px";
-      guia.style.width = "0px";
-      return;
-    }
-    const y = Math.max(84, Math.min(window.innerHeight - f.height - 16, cy - f.height / 2));
-    ficha.style.left = x + "px";
-    ficha.style.top = y + "px";
-    const desde = alLado ? b.x1 : x + f.width, hasta = alLado ? x : b.x0;
-    guia.style.left = Math.min(desde, hasta) + "px";
-    guia.style.top = cy + "px";
-    guia.style.width = Math.abs(hasta - desde) + "px";
-  }
-
-  function resaltarPiso(piso) {
-    if (vista() !== "fachada" || piso === pisoActivo) return;
-    if (pisoActivo) franjas[pisoActivo].el.classList.remove("activo");
-    pisoActivo = piso;
-    if (!piso) { ficha.classList.remove("visible"); guia.classList.remove("visible"); return; }
-    const d = PISOS[piso];
-    franjas[piso].el.classList.add("activo");
-    $("f-num").textContent = piso;
-    $("f-titulo").textContent = d.titulo;
-    pintarFichaPiso(piso);
-    ficha.classList.add("visible");
-    guia.classList.add("visible");
-    $("pista-fachada").classList.add("vista-ya");
-    situarFicha(piso);
-  }
-
-  // ============ planta ================================================================
-  const hojas = [$("hoja-a"), $("hoja-b")];
-  let hojaViva = 0;
-
-  function encajarLamina() {
-    const d = pisoEnPlanta && PLANTAS[PISOS[pisoEnPlanta].planta];
-    if (!d) return;
-    const campo = $("campo-planta");
-    let escala = Math.min(campo.clientWidth / d.ancho, campo.clientHeight / d.alto);
-    // En un celular en vertical, un piso apaisado encajado a lo ancho queda del
-    // tamano de un sello. Se le da media altura de pantalla y se desliza de lado.
-    const estrecho = campo.clientWidth < campo.clientHeight * 0.8;
-    if (estrecho) escala = Math.max(escala, campo.clientHeight * 0.52 / d.alto);
-    const w = d.ancho * escala;
-    lamina.style.width = w + "px";
-    lamina.style.height = (d.alto * escala) + "px";
-    campo.style.overflowX = w > campo.clientWidth + 1 ? "auto" : "";
-    lamina.style.left = w > campo.clientWidth + 1 ? (w / 2) + "px" : "";
-  }
-
-  function numeroDe(piso, u) { return piso === 7 ? u.numero : `${piso}${u.numero}`; }
-
-  function mostrarPlano(piso, retardo = 0) {
-    const info = PISOS[piso], d = PLANTAS[info.planta];
-    pisoEnPlanta = piso;
-    resaltarUnidad(null);
-    $("p-sobre").textContent = "Piso " + piso;
-    $("p-titulo").textContent = info.titulo + " · " + info.lista[0];
-    for (const b of $("pisos").children) b.setAttribute("aria-current", String(Number(b.dataset.piso) === piso));
-    encajarLamina();
-
-    // el casco del piso: pasillo, vestibulo y nucleo
-    const actual = hojas[hojaViva];
-    if (actual.dataset.imagen !== d.imagen) {
-      const otra = hojas[1 - hojaViva];
-      otra.onload = () => { actual.classList.remove("viva"); otra.classList.add("viva"); };
-      otra.dataset.imagen = d.imagen;
-      otra.alt = `Planta del piso ${piso}: ${info.titulo}`;
-      otra.src = d.imagen;
-      if (otra.complete && otra.naturalWidth) otra.onload();
-      hojaViva = 1 - hojaViva;
-    } else {
-      actual.classList.add("viva");
-    }
-
-    // los apartamentos, uno a uno. Se crean de nuevo en cada piso: asi la
-    // llegada escalonada se repite al cambiar de nivel.
-    const capa = $("unidades");
-    capa.replaceChildren();
-    d.unidades.forEach((u, k) => {
-      const t = TIPOLOGIAS[u.tipologia], du = unidad(piso, u), m = u.marco, numero = numeroDe(piso, u);
-      const el = document.createElement("button");
-      el.className = "unidad " + (du.estado || "");
-      el.style.left = (m[0] * 100) + "%";
-      el.style.top = (m[1] * 100) + "%";
-      el.style.width = ((m[2] - m[0]) * 100) + "%";
-      el.style.height = ((m[3] - m[1]) * 100) + "%";
-      el.style.animationDelay = (retardo + k * 75) + "ms";
-      el.setAttribute("aria-label",
-        `Apartamento ${numero}: ${t.titulo}, ${m2(t.interior_m2)}` +
-        (du.estado ? `, ${ESTADO[du.estado].toLowerCase()}` : ""));
-      const img = document.createElement("img");
-      img.src = t.planta;
-      img.alt = "";
-      img.draggable = false;
-      // La misma planta sirve para las cuatro orientaciones: se voltea.
-      img.style.transform = `scale(${u.voltea_x ? -1 : 1}, ${u.voltea_y ? -1 : 1})`;
-      el.appendChild(img);
-      const chapa = document.createElement("span");
-      chapa.className = "chapa";
-      chapa.textContent = numero + (du.estado === "vendido" ? " · Vendido" : du.estado === "apartado" ? " · Reservado" : "");
-      chapa.style.left = (((u.caja[0] + u.caja[2]) / 2 - m[0]) / (m[2] - m[0]) * 100) + "%";
-      chapa.style.top = (((u.caja[1] + u.caja[3]) / 2 - m[1]) / (m[3] - m[1]) * 100) + "%";
-      el.appendChild(chapa);
-      el.addEventListener("pointerenter", (ev) => { if (ev.pointerType === "mouse") resaltarUnidad(k); });
-      el.addEventListener("pointerleave", (ev) => { if (ev.pointerType === "mouse") resaltarUnidad(null); });
-      el.addEventListener("focus", () => resaltarUnidad(k));
-      el.addEventListener("click", () => {
-        if (tactil && unidadActiva !== k) { resaltarUnidad(k); return; }
-        abrirApto(k);
-      });
-      capa.appendChild(el);
-    });
-    // un piso sin apartamentos (el 1) rotula sus zonas
-    (d.zonas || []).forEach((z, k) => {
-      const r = document.createElement("div");
-      r.className = "zona-rotulo";
-      r.style.left = (z.x * 100) + "%";
-      r.style.top = (z.y * 100) + "%";
-      r.style.animationDelay = (retardo + k * 60) + "ms";
-      r.innerHTML = `${z.nombre}<small>${m2(z.m2)}</small>`;
-      capa.appendChild(r);
-    });
-    $("pista-planta").style.display = d.unidades.length ? "" : "none";
-    $("leyenda").style.display = d.unidades.length ? "" : "none";
-  }
-
-  function resaltarUnidad(k) {
-    const capa = $("unidades");
-    if (unidadActiva !== null && capa.children[unidadActiva]) capa.children[unidadActiva].classList.remove("activo");
-    unidadActiva = k;
-    if (k === null || k === undefined) { unidadActiva = null; rotulo.classList.remove("visible"); return; }
-    const u = PLANTAS[PISOS[pisoEnPlanta].planta].unidades[k], t = TIPOLOGIAS[u.tipologia];
-    capa.children[k].classList.add("activo");
-    const du = unidad(pisoEnPlanta, u);
-    rotulo.innerHTML = `<b>${numeroDe(pisoEnPlanta, u)}</b>${t.titulo} <span>· ${m2(t.interior_m2)}` +
-      (du.precio ? ` · ${du.estado === "vendido" ? "Vendido" : pesos(du.precio)}` +
-                   (du.estado === "apartado" ? " · Reservado" : "") : "") + `</span>`;
-    const r = lamina.getBoundingClientRect(), c = $("campo-planta").getBoundingClientRect();
-    rotulo.style.left = ($("campo-planta").scrollLeft + r.left - c.left + (u.caja[0] + u.caja[2]) / 2 * r.width) + "px";
-    rotulo.style.top = Math.max(4, r.top - c.top + u.marco[1] * r.height - 46) + "px";
-    rotulo.classList.add("visible");
-    $("pista-planta").classList.add("vista-ya");
-  }
-
-  // ============ apartamento ============================================================
-  function encajarCorte() {
-    if (!unidadAbierta) return;
-    const t = TIPOLOGIAS[unidadAbierta.u.tipologia], e = $("escena-apto");
-    const escala = Math.min(e.clientWidth / t.ancho, e.clientHeight / t.alto);
-    $("corte").style.width = (t.ancho * escala) + "px";
-    $("corte").style.height = (t.alto * escala) + "px";
-  }
-
-  function abrirApto(k) {
-    const u = PLANTAS[PISOS[pisoEnPlanta].planta].unidades[k], t = TIPOLOGIAS[u.tipologia];
-    const numero = numeroDe(pisoEnPlanta, u);
-    unidadAbierta = { k, u, piso: pisoEnPlanta };
-    CRM.ver(numero);                       // el CRM sabe que unidades se miran
-    rotulo.classList.remove("visible");
-    // La lamina crece con origen en el apartamento elegido mientras se funde.
-    lamina.style.transformOrigin = `${(u.caja[0] + u.caja[2]) / 2 * 100}% ${(u.caja[1] + u.caja[3]) / 2 * 100}%`;
-    lamina.style.transform = "translate(-50%, -50%) scale(2.4)";
-
-    $("u-sobre").textContent = `Piso ${pisoEnPlanta} · Apartamento ${numero}`;
-    $("u-titulo").textContent = t.titulo;
-    $("d-sobre").textContent = "Apartamento " + numero;
-    $("d-titulo").textContent = t.titulo;
-    pintarFichaApto();
-    $("nota-demo").textContent = DATOS.nota || "";
-
-    const corte = $("corte");
-    corte.classList.toggle("espejo", u.espejo);
-    $("corte-img").src = t.imagen;
-    $("corte-img").alt = `Corte isométrico del apartamento ${numero}, ${t.titulo}`;
-    corte.querySelectorAll(".punto").forEach((p) => p.remove());
-    const lista = $("estancias");
-    lista.replaceChildren();
-    const activar = (id, si) => {
-      corte.querySelectorAll(".punto").forEach((p) => p.classList.toggle("activo", si && p.dataset.id === id));
-      for (const li of lista.children) li.classList.toggle("activo", si && li.dataset.id === id);
-    };
-    for (const e of t.estancias) {
-      const li = document.createElement("li");
-      li.dataset.id = e.id;
-      li.innerHTML = `<span>${e.nombre}</span><span>${m2(e.m2)}</span>`;
-      li.addEventListener("pointerenter", () => activar(e.id, true));
-      li.addEventListener("pointerleave", () => activar(e.id, false));
-      if (e.foto || e.pano) { li.classList.add("con-foto"); li.addEventListener("click", () => abrirEstancia(e.id)); }
-      lista.appendChild(li);
-      if (e.x === null || e.x === undefined) continue;
-      const p = document.createElement("button");
-      p.className = (e.foto || e.pano) ? "punto" : "punto sin-foto";
-      if (e.foto || e.pano) p.addEventListener("click", () => abrirEstancia(e.id));
-      p.dataset.id = e.id;
-      // En un apartamento reflejado la imagen va volteada, y sus puntos con ella.
-      p.style.left = ((u.espejo ? 1 - e.x : e.x) * 100) + "%";
-      p.style.top = (e.y * 100) + "%";
-      p.setAttribute("aria-label", `${e.nombre}, ${m2(e.m2)}`);
-      p.innerHTML = `<i>${e.nombre} · ${m2(e.m2)}</i>`;
-      p.addEventListener("pointerenter", () => activar(e.id, true));
-      p.addEventListener("pointerleave", () => activar(e.id, false));
-      p.addEventListener("focus", () => activar(e.id, true));
-      p.addEventListener("blur", () => activar(e.id, false));
-      corte.appendChild(p);
-    }
-    cuerpo.dataset.vista = "apto";
-    encajarCorte();
-    history.replaceState(null, "", `#apto-${pisoEnPlanta}-${k + 1}`);
-    setTimeout(() => $("a-planta").focus({ preventScroll: true }), 950);
-  }
-
-  function cerrarApto() {
-    if (vista() !== "apto") return;
-    cuerpo.dataset.vista = "planta";
-    lamina.style.transform = "translate(-50%, -50%) scale(1)";
-    unidadAbierta = null;
-    history.replaceState(null, "", "#piso-" + pisoEnPlanta);
-  }
-
-
-  // ============ enlace con el CRM ======================================================
-  // El estado de cada unidad no es de la pagina: llega del CRM y puede cambiar
-  // mientras alguien la mira. Cada cambio se refleja donde este el visitante.
-  function pintarFichaApto() {
-    if (!unidadAbierta) return;
-    const { u, piso } = unidadAbierta, t = TIPOLOGIAS[u.tipologia], du = unidad(piso, u), numero = numeroDe(piso, u);
-    $("d-cifras").innerHTML =
-      `<div><b>${m2(t.interior_m2)}</b><span>Área interior</span></div>` +
-      `<div><b>${m2(t.exterior_m2)}</b><span>Balcón y terraza</span></div>` +
-      `<div><b>${t.alcobas}</b><span>Distribución</span></div>` +
-      `<div><b>${t.banos}</b><span>Baños</span></div>` +
-      (du.precio
-        ? `<div><b>${pesos(du.precio)}</b><span>Precio</span></div>` +
-          `<div><b><span class="estado ${du.estado}">${ESTADO[du.estado]}</span></b><span>Estado</span></div>`
-        : "");
-    const guardado = favoritos.has(numero);
-    $("acciones").innerHTML =
-      (du.estado === "vendido" ? "" : `<button class="boton" id="cotizar">Cotizar plan de pagos</button>`) +
-      `<button class="boton solo-web" id="asesor">Hablar con un asesor</button>` +
-      `<div class="par"><button class="boton" id="favorito" aria-pressed="${guardado}">${guardado ? "♥ Guardado" : "♡ Guardar"}</button>` +
-      `<button class="boton solo-web" id="compartir">Compartir</button></div>`;
-    if ($("cotizar")) $("cotizar").addEventListener("click", () => abrirCotizador(numero));
-    $("asesor").addEventListener("click", () => window.open(enlaceWhatsapp(numero, false), "_blank", "noopener"));
-    $("favorito").addEventListener("click", () => { alternarFavorito(numero); pintarFichaApto(); });
-    $("compartir").addEventListener("click", () => compartir(numero));
-    const caja = $("reserva");
-    if (du.estado !== "disponible") {
-      caja.innerHTML = `<button class="boton" disabled>${du.estado === "vendido" ? "Unidad vendida" : "Unidad reservada"}</button>`;
-      return;
-    }
-    caja.innerHTML = `<button class="boton" id="reservar">Reservar esta unidad</button>`;
-    $("reservar").addEventListener("click", () => {
-      caja.innerHTML = `<form id="form-reserva"><input name="nombre" placeholder="Nombre del cliente" autocomplete="off" maxlength="60" required>` +
-        `<button class="boton" type="submit">Enviar reserva al CRM</button></form>` +
-        `<p>Demostración: la reserva viaja al CRM simulado y la unidad cambia de estado en todas las pantallas.</p>`;
-      const f = $("form-reserva");
-      f.nombre.focus();
-      f.addEventListener("submit", async (ev) => {
-        ev.preventDefault();
-        const nombre = f.nombre.value.trim();
-        if (!nombre) return;
-        f.querySelector("button").disabled = true;
-        await CRM.cambiar(numero, "apartado", { cliente: nombre, asesor: "Showroom", origen: "showroom" });
-      });
-    });
-  }
-
-  function pintarFichaPiso(piso) {
-    const d = PISOS[piso];
-    const delPiso = Object.values(DATOS.unidades).filter((x) => x.piso === piso);
-    const libres = delPiso.filter((x) => x.estado === "disponible");
-    const extra = !delPiso.length ? [] : libres.length
-      ? [`${libres.length} disponibles · desde ${pesos(Math.min(...libres.map((x) => x.precio)))}`]
-      : ["Sin unidades disponibles"];
-    $("f-lista").innerHTML = d.lista.concat(extra).map((t) => `<li>${t}</li>`).join("");
-  }
-
-  function pintarEnlace() {
-    const c = CRM.cuenta();
-    $("enlace").classList.toggle("vivo", CRM.enLinea);
-    $("enlace-txt").innerHTML = CRM.enLinea
-      ? `CRM en línea · <b>${c.disponible}</b> disponibles · <b>${c.apartado}</b> reservados · <b>${c.vendido}</b> vendidos`
-      : "Sin conexión con el CRM, reintentando…";
-  }
-
-  function avisar(ev) {
-    const texto = { apartado: "acaba de ser reservado", vendido: "acaba de venderse", disponible: "vuelve a estar disponible" }[ev.estado];
-    const a = document.createElement("div");
-    a.className = "aviso " + ev.estado;
-    a.innerHTML = `<i></i><div>Apartamento <b>${ev.numero}</b> ${texto}<small>CRM · en vivo</small></div>`;
-    $("avisos").appendChild(a);
-    while ($("avisos").children.length > 3) $("avisos").firstChild.remove();
-    setTimeout(() => { a.classList.add("fuera"); setTimeout(() => a.remove(), 520); }, 5200);
-  }
-
-  function alCambiarCrm(ev) {
-    if (ev.tipo !== "reinicio" && ev.tipo !== "cambio") return;      // consultas e interesados: son del panel
-    if (ev.tipo === "reinicio") {
-      for (const [n, u] of Object.entries(CRM.estado.unidades)) if (DATOS.unidades[n]) DATOS.unidades[n].estado = u.estado;
-      if (vista() === "planta") mostrarPlano(pisoEnPlanta);
-    } else if (DATOS.unidades[ev.numero]) {
-      DATOS.unidades[ev.numero].estado = ev.estado;
-      avisar(ev);
-      // en la planta: la pieza de esa unidad cambia y late
-      if (pisoEnPlanta) {
-        const lista = PLANTAS[PISOS[pisoEnPlanta].planta].unidades;
-        const k = lista.findIndex((u) => numeroDe(pisoEnPlanta, u) === ev.numero);
-        const el = k >= 0 ? $("unidades").children[k] : null;
-        if (el && el.classList.contains("unidad")) {
-          el.classList.remove("disponible", "apartado", "vendido", "latido");
-          void el.offsetWidth;                       // reinicia la animacion
-          el.classList.add(ev.estado, "latido");
-          el.querySelector(".chapa").textContent = ev.numero +
-            (ev.estado === "vendido" ? " · Vendido" : ev.estado === "apartado" ? " · Reservado" : "");
-          setTimeout(() => el.classList.remove("latido"), 1600);
-        }
-      }
-    }
-    if ($("buscador").classList.contains("abierta")) pintarBuscador();
-    if (unidadAbierta) pintarFichaApto();
-    if (pisoActivo && vista() === "fachada") pintarFichaPiso(pisoActivo);
-    pintarEnlace();
-  }
-
-  // ============ visor de 360 grados =====================================================
-  // La panoramica es una imagen equirectangular: su centro mira a la fachada
-  // (+Y del plano) y la longitud crece hacia +X. Un sombreador la proyecta
-  // segun hacia donde mira el visitante; no hay geometria, solo una imagen.
-  const pano = (() => {
-    const lienzo = $("pano"), saltos = $("saltos");
-    const gl = lienzo.getContext("webgl2") || lienzo.getContext("webgl");
-    if (!gl) return null;
-    const esGl2 = typeof WebGL2RenderingContext !== "undefined" && gl instanceof WebGL2RenderingContext;
-    const compilar = (tipo, fuente) => { const s = gl.createShader(tipo); gl.shaderSource(s, fuente); gl.compileShader(s); return s; };
-    const prog = gl.createProgram();
-    gl.attachShader(prog, compilar(gl.VERTEX_SHADER,
-      "attribute vec2 p; varying vec2 v; void main(){ v = p; gl_Position = vec4(p, 0.0, 1.0); }"));
-    gl.attachShader(prog, compilar(gl.FRAGMENT_SHADER, `
-      precision highp float;
-      varying vec2 v;
-      uniform sampler2D t;
-      uniform float giro, alza, tangente, aspecto, espejo;
-      void main() {
-        vec3 f = vec3(sin(giro) * cos(alza), cos(giro) * cos(alza), sin(alza));
-        vec3 r = vec3(cos(giro), -sin(giro), 0.0);
-        vec3 u = vec3(-sin(giro) * sin(alza), -cos(giro) * sin(alza), cos(alza));
-        vec3 d = normalize(f + r * v.x * tangente * aspecto + u * v.y * tangente);
-        float lon = atan(d.x, d.y), lat = asin(clamp(d.z, -1.0, 1.0));
-        float s = lon / 6.28318530718 + 0.5;
-        gl_FragColor = texture2D(t, vec2(mix(s, 1.0 - s, espejo), 0.5 - lat / 3.14159265359));
-      }`));
-    gl.linkProgram(prog);
-    gl.useProgram(prog);
-    const buf = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
-    const loc = gl.getAttribLocation(prog, "p");
-    gl.enableVertexAttribArray(loc);
-    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-    const U = {};
-    for (const n of ["giro", "alza", "tangente", "aspecto", "espejo"]) U[n] = gl.getUniformLocation(prog, n);
-    const textura = gl.createTexture();
-    gl.bindTexture(gl.TEXTURE_2D, textura);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    // Solo WebGL2 deja repetir una textura que no es potencia de dos; repetirla
-    // en horizontal es lo que evita una raya en la costura de la vuelta.
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, esGl2 ? gl.REPEAT : gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-
-    const estado = { giro: 0, alza: 0, campo: 78, vGiro: 0, vAlza: 0, espejo: false, lista: false,
-                     paseo: true, destinos: [], cargada: "" };
-    let arrastre = null, antes = performance.now();
-
-    function ajustar() {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const w = Math.round(lienzo.clientWidth * dpr), h = Math.round(lienzo.clientHeight * dpr);
-      if (lienzo.width !== w || lienzo.height !== h) { lienzo.width = w; lienzo.height = h; }
-      gl.viewport(0, 0, lienzo.width, lienzo.height);
-    }
-
-    function pintar() {
-      if (!estado.lista) return;
-      ajustar();
-      const tangente = Math.tan(estado.campo * Math.PI / 360), aspecto = lienzo.width / Math.max(1, lienzo.height);
-      gl.uniform1f(U.giro, estado.giro);
-      gl.uniform1f(U.alza, estado.alza);
-      gl.uniform1f(U.tangente, tangente);
-      gl.uniform1f(U.aspecto, aspecto);
-      gl.uniform1f(U.espejo, estado.espejo ? 1 : 0);
-      gl.drawArrays(gl.TRIANGLES, 0, 3);
-      // Los puntos para caminar: cada uno es una direccion del plano, que se
-      // proyecta a la pantalla con la misma camara que la imagen.
-      const g = estado.giro, a = estado.alza;
-      const f = [Math.sin(g) * Math.cos(a), Math.cos(g) * Math.cos(a), Math.sin(a)];
-      const r = [Math.cos(g), -Math.sin(g), 0];
-      const u = [-Math.sin(g) * Math.sin(a), -Math.cos(g) * Math.sin(a), Math.cos(a)];
-      const punto = (p, q) => p[0] * q[0] + p[1] * q[1] + p[2] * q[2];
-      for (const d of estado.destinos) {
-        const z = punto(d.dir, f);
-        if (z < 0.12) { d.el.style.display = "none"; continue; }
-        const x = punto(d.dir, r) / z / (tangente * aspecto), y = punto(d.dir, u) / z / tangente;
-        d.el.style.display = Math.abs(x) > 1.1 || Math.abs(y) > 1.1 ? "none" : "";
-        d.el.style.left = ((x * 0.5 + 0.5) * 100) + "%";
-        d.el.style.top = ((0.5 - y * 0.5) * 100) + "%";
-      }
-    }
-
-    function latido(ahora) {
-      const dt = Math.min(0.05, (ahora - antes) / 1000);
-      antes = ahora;
-      if (vista() === "estancia" && estado.lista) {
-        if (!arrastre) {
-          if (estado.paseo) estado.giro += 0.05 * dt;            // una vuelta lenta, hasta que alguien toca
-          estado.giro += estado.vGiro * dt;
-          estado.alza = Math.max(-1.15, Math.min(1.15, estado.alza + estado.vAlza * dt));
-          estado.vGiro *= Math.pow(0.03, dt);
-          estado.vAlza *= Math.pow(0.03, dt);
-        }
-        pintar();
-      }
-      requestAnimationFrame(latido);
-    }
-    requestAnimationFrame(latido);
-
-    lienzo.addEventListener("pointerdown", (ev) => {
-      lienzo.setPointerCapture(ev.pointerId);
-      arrastre = { x: ev.clientX, y: ev.clientY, t: performance.now() };
-      estado.paseo = false;
-      estado.vGiro = estado.vAlza = 0;
-      lienzo.classList.add("agarrando");
-      $("pista-pano").classList.add("vista-ya");
-    });
-    lienzo.addEventListener("pointermove", (ev) => {
-      if (!arrastre) return;
-      const porPixel = (estado.campo * Math.PI / 180) / Math.max(1, lienzo.clientHeight);
-      const ahora = performance.now(), dt = Math.max(1, ahora - arrastre.t) / 1000;
-      // Se arrastra la imagen, no la camara: mover a la derecha gira a la izquierda.
-      const dg = -(ev.clientX - arrastre.x) * porPixel * (estado.espejo ? -1 : 1);
-      const da = (ev.clientY - arrastre.y) * porPixel;
-      estado.giro += dg;
-      estado.alza = Math.max(-1.15, Math.min(1.15, estado.alza + da));
-      estado.vGiro = 0.6 * estado.vGiro + 0.4 * dg / dt;
-      estado.vAlza = 0.6 * estado.vAlza + 0.4 * da / dt;
-      arrastre = { x: ev.clientX, y: ev.clientY, t: ahora };
-    });
-    const soltar = () => { arrastre = null; lienzo.classList.remove("agarrando"); };
-    lienzo.addEventListener("pointerup", soltar);
-    lienzo.addEventListener("pointercancel", soltar);
-    lienzo.addEventListener("wheel", (ev) => {
-      ev.preventDefault();
-      estado.campo = Math.max(42, Math.min(96, estado.campo + ev.deltaY * 0.04));
-    }, { passive: false });
-
-    return {
-      estado,
-      // Carga una panoramica. `mira` es el rumbo inicial (radianes desde la
-      // fachada); `destinos` son [{rumbo, caida, etiqueta, ir}].
-      abrir(ruta, espejo, mira, destinos, alListo) {
-        estado.espejo = espejo;
-        saltos.replaceChildren();
-        estado.destinos = destinos.map((d) => {
-          const el = document.createElement("button");
-          el.className = "salto";
-          el.innerHTML = `<i></i><span>${d.etiqueta}</span>`;
-          el.setAttribute("aria-label", "Ir a " + d.etiqueta);
-          el.addEventListener("click", d.ir);
-          saltos.appendChild(el);
-          const rumbo = espejo ? -d.rumbo : d.rumbo;
-          return { el, dir: [Math.sin(rumbo) * Math.cos(d.caida), Math.cos(rumbo) * Math.cos(d.caida), Math.sin(d.caida)] };
-        });
-        const img = new Image();
-        img.onload = () => {
-          gl.bindTexture(gl.TEXTURE_2D, textura);
-          gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
-          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, img);
-          estado.giro = espejo ? -mira : mira;
-          estado.alza = -0.05;
-          estado.vGiro = estado.vAlza = 0;
-          estado.lista = true;
-          estado.cargada = ruta;
-          pintar();
-          alListo && alListo();
-        };
-        img.src = ruta;
-      },
-      cerrar() { estado.lista = false; estado.destinos = []; saltos.replaceChildren(); },
-    };
-  })();
-
-  // ============ estancia ===============================================================
-  const fotos = [$("foto-a"), $("foto-b")];
-  let fotoViva = 0, estanciaAbierta = null;
-
-  function abrirEstancia(id) {
-    if (!unidadAbierta) return;
-    const t = TIPOLOGIAS[unidadAbierta.u.tipologia];
-    const e = t.estancias.find((x) => x.id === id && (x.foto || x.pano));
-    if (!e) return;
-    const viene = estanciaAbierta && t.estancias.find((x) => x.id === estanciaAbierta);
-    const numero = numeroDe(unidadAbierta.piso, unidadAbierta.u);
-    estanciaAbierta = id;
-    $("e-sobre").textContent = `Apartamento ${numero} · ${t.titulo}`;
-    $("e-titulo").textContent = `${e.nombre} · ${m2(e.m2)}`;
-    // Un apartamento reflejado se ve reflejado tambien por dentro.
-    $("foto-estancia").classList.toggle("espejo", unidadAbierta.u.espejo);
-
-    // Con panoramica, la estancia se recorre; sin ella, se ensena su foto fija.
-    const lugar = $("estancia"), espejo = unidadAbierta.u.espejo;
-    if (e.pano && pano) {
-      const destinos = (e.pasos || []).map((otro) => t.estancias.find((x) => x.id === otro))
-        .filter((x) => x && x.pano && x.pos && e.pos).map((x) => {
-          const dx = x.pos[0] - e.pos[0], dy = x.pos[1] - e.pos[1], lejos = Math.hypot(dx, dy);
-          // El aro se pinta en el suelo, a medio camino hacia la otra estancia.
-          return { rumbo: Math.atan2(dx, dy), caida: -Math.atan2(1.55, Math.max(2.6, lejos * 0.8)),
-                   etiqueta: x.nombre, ir: () => abrirEstancia(x.id) };
-        });
-      // Se entra mirando hacia donde se venia caminando; la primera vez, a la fachada.
-      const mira = viene && viene.pos && e.pos
-        ? Math.atan2(e.pos[0] - viene.pos[0], e.pos[1] - viene.pos[1]) : 0;
-      const yaEstaba = lugar.classList.contains("con-pano");
-      lugar.classList.add("con-pano");
-      if (yaEstaba) lugar.classList.add("cambiando");
-      setTimeout(() => pano.abrir(e.pano, espejo, mira, destinos, () => lugar.classList.remove("cambiando")),
-                 yaEstaba ? 380 : 0);
-    } else {
-      lugar.classList.remove("con-pano", "cambiando");
-      pano && pano.cerrar();
-    }
-
-    const actual = fotos[fotoViva];
-    if (!e.foto) {
-      actual.classList.remove("viva");
-    } else if (actual.dataset.foto !== e.foto) {
-      const otra = fotos[1 - fotoViva];
-      otra.onload = () => { actual.classList.remove("viva"); otra.classList.add("viva"); };
-      otra.dataset.foto = e.foto;
-      otra.alt = `${e.nombre} del apartamento ${numero}`;
-      otra.src = e.foto;
-      if (otra.complete && otra.naturalWidth) otra.onload();
-      fotoViva = 1 - fotoViva;
-    } else {
-      actual.classList.add("viva");
-    }
-
-    const barra = $("pestanas");
-    barra.replaceChildren();
-    for (const x of t.estancias.filter((y) => y.foto || y.pano)) {
-      const b = document.createElement("button");
-      b.innerHTML = x.nombre + (x.pano ? '<span class="g360">360°</span>' : "");
-      b.setAttribute("aria-current", String(x.id === id));
-      b.addEventListener("click", () => abrirEstancia(x.id));
-      barra.appendChild(b);
-    }
-    if (vista() !== "estancia") {
-      // El corte se acerca al punto elegido mientras se funde con la foto.
-      const corte = $("corte"), px = unidadAbierta.u.espejo ? 1 - e.x : e.x;
-      corte.style.transition = "transform var(--entra) var(--curva)";
-      corte.style.transformOrigin = `${px * 100}% ${e.y * 100}%`;
-      corte.style.transform = "translate(-50%, -50%) scale(2.4)";
-      cuerpo.dataset.vista = "estancia";
-      setTimeout(() => $("a-apto").focus({ preventScroll: true }), 950);
-    }
-    history.replaceState(null, "", `#apto-${unidadAbierta.piso}-${unidadAbierta.k + 1}-${id}`);
-  }
-
-  function cerrarEstancia() {
-    if (vista() !== "estancia") return;
-    cuerpo.dataset.vista = "apto";
-    $("corte").style.transform = "translate(-50%, -50%) scale(1)";
-    for (const f of fotos) f.classList.remove("viva");
-    $("estancia").classList.remove("con-pano", "cambiando");
-    pano && pano.cerrar();
-    estanciaAbierta = null;
-    history.replaceState(null, "", `#apto-${unidadAbierta.piso}-${unidadAbierta.k + 1}`);
-  }
-
-  // ============ buscador, comparador, cotizador y WhatsApp ==============================
-  // `?modo=sala` es la pantalla de la sala de ventas: pantalla completa, sin
-  // enlaces hacia fuera y de vuelta a la fachada cuando nadie la toca.
-  const parametros = new URLSearchParams(location.search);
-  const SALA = parametros.get("modo") === "sala";
-  const ESPERA = Math.max(5, Number(parametros.get("espera")) || 90) * 1000;
-  cuerpo.classList.toggle("sala", SALA);
-
-  // Favoritos: en casa se quedan en el navegador; en la sala duran lo que la visita.
-  const CLAVE_FAV = "mileto-favoritos-v1";
-  const favoritos = new Set();
-  if (!SALA) { try { for (const n of JSON.parse(localStorage.getItem(CLAVE_FAV) || "[]")) favoritos.add(String(n)); } catch (e) { /* nada */ } }
-  function alternarFavorito(numero) {
-    if (!favoritos.delete(numero)) favoritos.add(numero);
-    if (!SALA) { try { localStorage.setItem(CLAVE_FAV, JSON.stringify([...favoritos])); } catch (e) { /* sin sitio */ } }
-    notar(favoritos.has(numero) ? `Apartamento ${numero} guardado en tus favoritos` : `Apartamento ${numero} quitado de tus favoritos`);
-  }
-
-  function notar(texto) {
-    const a = document.createElement("div"), d = document.createElement("div");
-    a.className = "aviso";
-    d.textContent = texto;
-    a.append(document.createElement("i"), d);
-    $("avisos").appendChild(a);
-    while ($("avisos").children.length > 3) $("avisos").firstChild.remove();
-    setTimeout(() => { a.classList.add("fuera"); setTimeout(() => a.remove(), 520); }, 4200);
-  }
-
-  async function compartir(numero) {
-    const x = localizar(numero);
-    const url = `${location.origin}${location.pathname}#apto-${x.piso}-${x.k + 1}`;
-    const titulo = `${DATOS.edificio.nombre} · Apartamento ${numero}`;
-    try {
-      if (navigator.share) { await navigator.share({ title: titulo, text: `${titulo} · ${x.t.titulo}, ${pesos(x.d.precio)}`, url }); return; }
-      await navigator.clipboard.writeText(url);
-      notar("Enlace del apartamento copiado");
-    } catch (e) {
-      if (e && e.name !== "AbortError") notar("No se pudo copiar el enlace: " + url);
-    }
-  }
-
-  const filtro = { tipologia: "", piso: 0, tope: 0, libres: true, favoritos: false };
-  const elegidas = [];                       // numeros marcados para comparar (maximo 3)
-  const plan = { inicial: 30, meses: 24, anios: 15, tasa: 12, separacion: 10e6 };
-  let cotizada = null;
-  const dinero = (v) => "$" + Math.round(v).toLocaleString("es-CO");
-  const capaAbierta = () => document.querySelector(".capa.abierta");
-
-  function abrirCapa(id) {
-    const c = $(id);
-    c.inert = false;
-    c.classList.add("abierta");
-    setTimeout(() => c.querySelector(".cerrar").focus({ preventScroll: true }), 60);
-  }
-  function cerrarCapa() {
-    const c = capaAbierta();
-    if (!c) return false;
-    c.classList.remove("abierta");
-    c.inert = true;
-    return true;
-  }
-
-  function localizar(numero) {
-    const d = DATOS.unidades[numero];
-    if (!d) return null;
-    const k = PLANTAS[PISOS[d.piso].planta].unidades.findIndex((u) => numeroDe(d.piso, u) === numero);
-    return k < 0 ? null : { numero, piso: d.piso, k, d, t: TIPOLOGIAS[d.tipologia] };
-  }
-
-  // Desde cualquier vista, hasta la ficha de una unidad.
-  function irAUnidad(numero) {
-    const x = localizar(numero);
-    if (!x) return;
-    cerrarCapa();
-    if (vista() === "estancia") cerrarEstancia();
-    if (vista() === "apto") cerrarApto();
-    if (vista() === "fachada") entrarPiso(x.piso); else mostrarPlano(x.piso);
-    abrirApto(x.k);
-  }
-
-  function prepararBuscador() {
-    const precios = Object.values(DATOS.unidades).map((u) => u.precio);
-    const tope = $("b-tope"), paso = 10e6;
-    tope.min = Math.ceil(Math.min(...precios) / paso) * paso;
-    tope.max = Math.ceil(Math.max(...precios) / paso) * paso;
-    tope.step = paso;
-    tope.value = filtro.tope = Number(tope.max);
-    const chips = [["", "Todas"]].concat(Object.keys(TIPOLOGIAS).map((c) => [c, TIPOLOGIAS[c].titulo]));
-    $("b-tipos").innerHTML = chips.map(([c, t]) => `<button class="chip" data-t="${c}" aria-pressed="${c === ""}">${t}</button>`).join("");
-    const pisos = [...new Set(Object.values(DATOS.unidades).map((u) => u.piso))].sort();
-    $("b-piso").innerHTML = `<option value="0">Todos</option>` + pisos.map((p) => `<option value="${p}">${p}</option>`).join("");
-    $("b-sobre").textContent = DATOS.edificio.nombre + " · " + DATOS.edificio.lugar;
-
-    $("b-tipos").addEventListener("click", (ev) => {
-      const b = ev.target.closest(".chip");
-      if (!b) return;
-      filtro.tipologia = b.dataset.t;
-      for (const c of $("b-tipos").children) c.setAttribute("aria-pressed", String(c === b));
-      pintarBuscador();
-    });
-    $("b-piso").addEventListener("change", (ev) => { filtro.piso = Number(ev.target.value); pintarBuscador(); });
-    tope.addEventListener("input", () => { filtro.tope = Number(tope.value); pintarBuscador(); });
-    $("b-libres").addEventListener("change", (ev) => { filtro.libres = ev.target.checked; pintarBuscador(); });
-    $("b-favoritos").addEventListener("change", (ev) => { filtro.favoritos = ev.target.checked; pintarBuscador(); });
-    $("b-lista").addEventListener("click", (ev) => {
-      const fila = ev.target.closest(".fila-u");
-      if (!fila) return;
-      if (ev.target.closest("input")) { marcar(fila.dataset.n, ev.target); return; }
-      irAUnidad(fila.dataset.n);
-    });
-    $("b-lista").addEventListener("keydown", (ev) => {
-      if (ev.key === "Enter" && ev.target.classList.contains("fila-u")) irAUnidad(ev.target.dataset.n);
-    });
-    $("b-comparar").addEventListener("click", () => {
-      const si = !$("buscador").classList.contains("comparando");
-      $("buscador").classList.toggle("comparando", si);
-      pintarBuscador();
-    });
-    $("b-tabla").addEventListener("click", (ev) => {
-      const b = ev.target.closest("button[data-n]");
-      if (b) irAUnidad(b.dataset.n);
-    });
-    for (const b of document.querySelectorAll(".abre-buscador")) b.addEventListener("click", abrirBuscador);
-    for (const b of document.querySelectorAll(".capa .cerrar")) b.addEventListener("click", cerrarCapa);
-    for (const c of document.querySelectorAll(".capa")) c.addEventListener("pointerdown", (ev) => { if (ev.target === c) cerrarCapa(); });
-  }
-
-  function marcar(numero, casilla) {
-    const i = elegidas.indexOf(numero);
-    if (i >= 0) elegidas.splice(i, 1);
-    else if (elegidas.length < 3) elegidas.push(numero);
-    else casilla.checked = false;
-    pintarPieBuscador();
-  }
-
-  function pintarPieBuscador() {
-    const comparando = $("buscador").classList.contains("comparando");
-    $("b-comparar").disabled = !comparando && elegidas.length < 2;
-    $("b-comparar").textContent = comparando ? "← Resultados" : `Comparar${elegidas.length ? " (" + elegidas.length + ")" : ""}`;
-    $("b-titulo").textContent = comparando ? "Comparación" : "Encuentra tu apartamento";
-    $("b-nota").textContent = comparando ? (DATOS.nota || "")
-      : elegidas.length === 3 ? "Tres elegidos: es el máximo para comparar" : "Marca hasta 3 apartamentos para compararlos";
-  }
-
-  function abrirBuscador() {
-    $("buscador").classList.remove("comparando");
-    pintarBuscador();
-    abrirCapa("buscador");
-  }
-
-  function pintarBuscador() {
-    $("b-tope-txt").textContent = pesos(filtro.tope);
-    const lista = Object.keys(DATOS.unidades).map(localizar).filter(Boolean)
-      .filter((x) => (!filtro.tipologia || x.d.tipologia === filtro.tipologia) && (!filtro.piso || x.piso === filtro.piso) &&
-                     x.d.precio <= filtro.tope && (!filtro.libres || x.d.estado === "disponible") &&
-                     (!filtro.favoritos || favoritos.has(x.numero)))
-      .sort((a, b) => a.d.precio - b.d.precio || a.numero.localeCompare(b.numero));
-    $("b-cuenta").textContent = lista.length
-      ? `${lista.length} ${lista.length === 1 ? "apartamento" : "apartamentos"} · desde ${pesos(lista[0].d.precio)}`
-      : "Ningún apartamento cumple estos filtros";
-    $("b-lista").innerHTML = lista.map((x) =>
-      `<div class="fila-u ${x.d.estado}" data-n="${x.numero}" tabindex="0" role="button" aria-label="Apartamento ${x.numero}, ${x.t.titulo}, ${pesos(x.d.precio)}, ${ESTADO[x.d.estado]}">` +
-      `<input type="checkbox" aria-label="Comparar el ${x.numero}" ${elegidas.includes(x.numero) ? "checked" : ""}>` +
-      `<span class="n">${x.numero}${favoritos.has(x.numero) ? '<i class="fav" aria-label="favorito">♥</i>' : ""}</span>` +
-      `<span class="t">${x.t.titulo}<small>Piso ${x.piso} · ${x.t.alcobas}</small></span>` +
-      `<span class="a">${m2(x.t.interior_m2)}</span>` +
-      `<span class="p">${pesos(x.d.precio)}</span>` +
-      `<span class="e"><span class="estado ${x.d.estado}">${ESTADO[x.d.estado]}</span></span></div>`).join("");
-
-    const cols = elegidas.map(localizar).filter(Boolean);
-    const fila = (nombre, f, clase = "") => `<tr class="${clase}"><th>${nombre}</th>${cols.map((x) => `<td>${f(x)}</td>`).join("")}</tr>`;
-    $("b-tabla").innerHTML = `<thead><tr><th></th>${cols.map((x) => `<th>${x.numero}</th>`).join("")}</tr></thead><tbody>` +
-      fila("Precio", (x) => pesos(x.d.precio), "fuerte") +
-      fila("Estado", (x) => `<span class="estado ${x.d.estado}">${ESTADO[x.d.estado]}</span>`) +
-      fila("Tipología", (x) => x.t.titulo) +
-      fila("Piso", (x) => x.piso) +
-      fila("Área interior", (x) => m2(x.t.interior_m2)) +
-      fila("Balcón y terraza", (x) => m2(x.t.exterior_m2)) +
-      fila("Distribución", (x) => x.t.alcobas) +
-      fila("Baños", (x) => x.t.banos) +
-      fila("Cuota mensual estimada", (x) => dinero(calcular(x.d.precio).cuota)) +
-      fila("", (x) => `<button class="boton" data-n="${x.numero}">Ver apartamento</button>`) + `</tbody>`;
-    pintarPieBuscador();
-  }
-
-  // El plan de pagos habitual: cuota inicial repartida durante la obra y el
-  // saldo con credito o leasing. Todo se puede mover; nada es una oferta.
-  function calcular(precio) {
-    const inicial = precio * plan.inicial / 100;
-    const separacion = Math.min(plan.separacion, inicial);
-    const credito = precio - inicial;
-    const i = Math.pow(1 + plan.tasa / 100, 1 / 12) - 1, n = plan.anios * 12;
-    const cuota = i > 0 ? credito * i / (1 - Math.pow(1 + i, -n)) : credito / n;
-    return { inicial, separacion, cuotaObra: (inicial - separacion) / plan.meses, credito, cuota, ingresos: cuota / 0.30 };
-  }
-
-  function abrirCotizador(numero) {
-    cotizada = localizar(numero);
-    if (!cotizada) return;
-    $("q-inicial").value = plan.inicial; $("q-meses").value = plan.meses;
-    $("q-anios").value = plan.anios; $("q-tasa").value = plan.tasa;
-    pintarCotizacion();
-    abrirCapa("cotizador");
-  }
-
-  function pintarCotizacion() {
-    const x = cotizada, c = calcular(x.d.precio);
-    $("q-sobre").textContent = `${DATOS.edificio.nombre} · ${DATOS.edificio.lugar}`;
-    $("q-titulo").textContent = `Cotización · Apartamento ${x.numero}`;
-    $("q-inicial-txt").textContent = plan.inicial + " %";
-    $("q-meses-txt").textContent = plan.meses + " meses";
-    $("q-anios-txt").textContent = plan.anios + " años";
-    const f = (nombre, valor, clase = "") => `<tr class="${clase}"><th>${nombre}</th><td class="num">${valor}</td></tr>`;
-    $("q-tabla").innerHTML = `<tbody>` +
-      f("Apartamento", `${x.t.titulo} · piso ${x.piso} · ${m2(x.t.interior_m2)}`) +
-      f("Precio", dinero(x.d.precio)) +
-      f(`Cuota inicial (${plan.inicial} %)`, dinero(c.inicial)) +
-      f("Separación", dinero(c.separacion)) +
-      f(`${plan.meses} cuotas mensuales durante la obra`, dinero(c.cuotaObra), "fuerte") +
-      f(`Valor a financiar (${100 - plan.inicial} %)`, dinero(c.credito)) +
-      f(`Cuota mensual estimada del crédito · ${plan.anios} años · ${String(plan.tasa).replace(".", ",")} % E.A.`, dinero(c.cuota), "fuerte") +
-      f("Ingresos familiares sugeridos", dinero(c.ingresos)) + `</tbody>`;
-    $("q-letra").textContent = `Simulación de referencia del ${new Date().toLocaleDateString("es-CO")}. ` +
-      "La tasa, el plazo y la aprobación del crédito dependen de la entidad financiera; los ingresos sugeridos suponen una cuota " +
-      "de hasta el 30 % del ingreso. No constituye una oferta. " + (DATOS.nota || "");
-  }
-
-  function enlaceWhatsapp(numero, conPlan) {
-    const x = localizar(numero);
-    let texto = `Hola, me interesa el apartamento ${numero} de ${DATOS.edificio.nombre} ` +
-      `(${x.t.titulo}, piso ${x.piso}, ${pesos(x.d.precio)}).`;
-    if (conPlan) {
-      const c = calcular(x.d.precio);
-      texto += ` Hice esta cotización: cuota inicial del ${plan.inicial} % (${dinero(c.inicial)}), separación de ` +
-        `${dinero(c.separacion)} y ${plan.meses} cuotas de ${dinero(c.cuotaObra)}; crédito a ${plan.anios} años con cuota ` +
-        `estimada de ${dinero(c.cuota)}. ¿Me pueden confirmar las condiciones?`;
-    } else {
-      texto += " ¿Me pueden dar más información?";
-    }
-    return `https://wa.me/${(DATOS.contacto || {}).whatsapp || ""}?text=${encodeURIComponent(texto)}`;
-  }
-
-  for (const [id, clave] of [["q-inicial", "inicial"], ["q-meses", "meses"], ["q-anios", "anios"], ["q-tasa", "tasa"]]) {
-    $(id).addEventListener("input", (ev) => {
-      const v = Number(ev.target.value);
-      if (!Number.isFinite(v) || v < 0 || ev.target.value === "") return;
-      plan[clave] = v;
-      pintarCotizacion();
-    });
-  }
-  // Quien cotiza puede dejar sus datos: llegan al CRM con la unidad y el plan que armo.
-  $("q-form").addEventListener("submit", async (ev) => {
-    ev.preventDefault();
-    const f = ev.target, nombre = f.nombre.value.trim(), telefono = f.telefono.value.trim();
-    if (!nombre || !telefono || !cotizada) return;
-    const c = calcular(cotizada.d.precio), boton = f.querySelector("button");
-    boton.disabled = true;
-    const hecho = await CRM.interesado({ numero: cotizada.numero, nombre, telefono, origen: SALA ? "sala" : "showroom",
-      plan: `${plan.inicial} % inicial · ${plan.meses} cuotas de ${dinero(c.cuotaObra)} · crédito a ${plan.anios} años, ${dinero(c.cuota)}/mes` })
-      .catch(() => null);
-    boton.disabled = false;
-    if (!hecho) { notar("No se pudieron enviar los datos; inténtalo de nuevo"); return; }
-    f.reset();
-    notar(`Gracias, ${nombre}: un asesor te contactará por el apartamento ${cotizada.numero}`);
-  });
-
-  // La pantalla de la sala vuelve sola al principio cuando la visita se va.
-  function reiniciarVisita() {
-    cerrarCapa();
-    if (vista() === "estancia") cerrarEstancia();
-    if (vista() === "apto") cerrarApto();
-    if (vista() === "planta") volverAFachada();
-    setTimeout(() => { if (vista() === "fachada") resaltarPiso(null); }, 800);
-    elegidas.length = 0;
-    favoritos.clear();
-    Object.assign(plan, DATOS.financiacion || {});
-    Object.assign(filtro, { tipologia: "", piso: 0, tope: Number($("b-tope").max), libres: true, favoritos: false });
-    $("b-tope").value = filtro.tope; $("b-piso").value = "0"; $("b-libres").checked = true; $("b-favoritos").checked = false;
-    for (const c of $("b-tipos").children) c.setAttribute("aria-pressed", String(c.dataset.t === ""));
-    $("q-form").reset();
-    $("buscador").classList.remove("comparando");
-  }
-  if (SALA) {
-    let reposo = null;
-    const despertar = () => { clearTimeout(reposo); reposo = setTimeout(reiniciarVisita, ESPERA); };
-    for (const t of ["pointerdown", "pointermove", "keydown", "wheel"]) window.addEventListener(t, despertar, { passive: true });
-    window.addEventListener("contextmenu", (ev) => ev.preventDefault());
-    window.addEventListener("pointerdown", () => {
-      const raiz = document.documentElement;
-      if (!document.fullscreenElement && raiz.requestFullscreen) raiz.requestFullscreen().catch(() => {});
-    });
-    despertar();
-  }
-
-  // El panel de asesores se abre encima del showroom, sin salir de la pagina.
-  // Se carga la primera vez que se pide; despues sigue vivo y al dia.
-  function abrirPanel(seccion) {
-    const marco = $("marco-crm");
-    const ruta = "crm.html?dentro=1" + (seccion === "cartera" ? "#cartera" : "");
-    if (!marco.getAttribute("src")) marco.src = ruta;
-    abrirCapa("panel-crm");
-  }
-  $("acceso").addEventListener("click", () => abrirPanel());
-  if (!SALA && /^#crm(-cartera)?$/.test(location.hash)) abrirPanel(location.hash === "#crm-cartera" ? "cartera" : "");
-
-  $("q-pdf").addEventListener("click", () => window.print());
-  $("q-whatsapp").addEventListener("click", () => window.open(enlaceWhatsapp(cotizada.numero, true), "_blank", "noopener"));
-
-  // ============ ir y volver entre fachada y planta ====================================
-  function entrarPiso(piso) {
-    if (vista() !== "fachada") return;
-    resaltarPiso(piso);
-    // La camara se mete en la franja: el marco crece con origen en el piso
-    // elegido mientras la fachada se funde con la planta.
-    const c = franjas[piso].caja;
-    marco.style.transformOrigin = `${(c[0] + c[2]) / 2 * 100}% ${(c[1] + c[3]) / 2 * 100}%`;
-    marco.style.transform = "translate(-50%, -50%) scale(2.6)";
-    ficha.classList.remove("visible");
-    guia.classList.remove("visible");
-    cuerpo.dataset.vista = "planta";
-    lamina.style.transform = "translate(-50%, -50%) scale(1)";
-    mostrarPlano(piso, 520);
-    history.replaceState(null, "", "#piso-" + piso);
-    setTimeout(() => $("a-fachada").focus({ preventScroll: true }), 950);
-  }
-
-  function volverAFachada() {
-    if (vista() !== "planta") return;
-    cuerpo.dataset.vista = "fachada";
-    marco.style.transform = "translate(-50%, -50%) scale(1)";
-    for (const h of hojas) h.classList.remove("viva");
-    history.replaceState(null, "", location.pathname + location.search);
-    const vuelve = pisoEnPlanta;
-    if (pisoActivo) franjas[pisoActivo].el.classList.remove("activo");
-    pisoActivo = null;
-    setTimeout(() => { if (vista() === "fachada") resaltarPiso(vuelve); }, 700);
-  }
-
-  // ============ arranque ================================================================
-  const json = (ruta) => fetch(ruta).then((r) => r.json());
-  Promise.all([json("fachada/fachada.json"), json("plantas/plantas.json"),
-               json("apartamentos/tipologias.json"), json("datos.json")]).then(async ([fachada, plantas, tipologias, datos]) => {
-    PLANTAS = plantas;
-    TIPOLOGIAS = tipologias;
-    DATOS = datos;
-    // El estado de las unidades manda el CRM, no el fichero de partida.
-    await CRM.conectar(DATOS.unidades);
-    for (const [n, u] of Object.entries(CRM.estado.unidades)) if (DATOS.unidades[n]) DATOS.unidades[n].estado = u.estado;
-    CRM.alCambiar(alCambiarCrm);
-    CRM.alConectar(pintarEnlace);
-    $("c-nombre").textContent = datos.edificio.nombre;
-    $("c-lugar").textContent = `${datos.edificio.lugar} · ${Object.keys(datos.unidades).length} apartamentos`;
-    document.title = datos.edificio.nombre + " · Showroom";
-    Object.assign(plan, datos.financiacion || {});
-    prepararBuscador();
-    for (const p of fachada.pisos) {
-      const el = document.createElementNS(SVG, "polygon");
-      el.setAttribute("class", "zona");
-      el.setAttribute("points", p.poligono.map(([x, y]) => `${(x * 1600).toFixed(1)},${(y * 900).toFixed(1)}`).join(" "));
-      el.setAttribute("tabindex", "0");
-      el.setAttribute("role", "button");
-      el.setAttribute("aria-label", `Piso ${p.piso}: ${PISOS[p.piso].titulo}`);
-      const xs = p.poligono.map((q) => q[0]), ys = p.poligono.map((q) => q[1]);
-      franjas[p.piso] = { el, caja: [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)] };
-      el.addEventListener("pointerenter", (ev) => { if (ev.pointerType === "mouse") resaltarPiso(p.piso); });
-      el.addEventListener("focus", () => resaltarPiso(p.piso));
-      el.addEventListener("click", () => {
-        // Con el dedo, el primer toque elige el piso y el segundo entra.
-        if (tactil && pisoActivo !== p.piso) { resaltarPiso(p.piso); return; }
-        entrarPiso(p.piso);
-      });
-      el.addEventListener("keydown", (ev) => {
-        if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); entrarPiso(p.piso); }
-      });
-      $("franjas").appendChild(el);
-    }
-    for (let piso = 7; piso >= 1; piso--) {          // de arriba abajo, como en el edificio
-      const b = document.createElement("button");
-      b.textContent = piso;
-      b.dataset.piso = piso;
-      b.setAttribute("aria-label", "Piso " + piso);
-      b.addEventListener("click", () => mostrarPlano(piso));
-      $("pisos").appendChild(b);
-    }
-    encajarFachada();
-    const h = location.hash;
-    let m = h.match(/^#piso-(\d)$/);
-    if (m && PISOS[Number(m[1])]) entrarPiso(Number(m[1]));
-    m = h.match(/^#apto-(\d)-(\d+)(?:-([\w-]+))?$/);
-    if (m && PISOS[Number(m[1])]) {
-      entrarPiso(Number(m[1]));
-      const k = Number(m[2]) - 1;
-      if (PLANTAS[PISOS[Number(m[1])].planta].unidades[k]) {
-        abrirApto(k);
-        if (m[3]) abrirEstancia(m[3]);
-      }
-    }
-  });
-
-  $("f-ver").addEventListener("click", () => pisoActivo && entrarPiso(pisoActivo));
-  $("a-fachada").addEventListener("click", volverAFachada);
-  $("a-planta").addEventListener("click", cerrarApto);
-  $("a-apto").addEventListener("click", cerrarEstancia);
-  $("fachada").addEventListener("pointerdown", (ev) => {
-    if (!ev.target.closest(".zona, #ficha")) resaltarPiso(null);
-  });
-  window.addEventListener("resize", () => { encajarFachada(); encajarLamina(); encajarCorte(); });
-  window.addEventListener("keydown", (ev) => {
-    if (capaAbierta()) { if (ev.key === "Escape") cerrarCapa(); return; }
-    if (ev.key === "Escape") {
-      if (vista() === "estancia") cerrarEstancia();
-      else if (vista() === "apto") cerrarApto();
-      else if (vista() === "planta") volverAFachada();
-      else resaltarPiso(null);
-      return;
-    }
-    if (ev.key !== "ArrowUp" && ev.key !== "ArrowDown" || vista() === "apto" || vista() === "estancia") return;
-    ev.preventDefault();
-    const paso = ev.key === "ArrowUp" ? 1 : -1;
-    if (vista() === "planta") mostrarPlano(Math.max(1, Math.min(7, pisoEnPlanta + paso)));
-    else resaltarPiso(Math.max(1, Math.min(7, (pisoActivo || (paso > 0 ? 0 : 8)) + paso)));
-  });
-
-  // Para pruebas desde la consola o un script.
-  window.__showroom = { resaltarPiso, entrarPiso, volverAFachada, mostrarPlano, resaltarUnidad, abrirApto, cerrarApto,
-    abrirEstancia, cerrarEstancia, pano, abrirBuscador, irAUnidad, abrirCotizador, enlaceWhatsapp, calcular, cerrarCapa,
-    filtro, elegidas, plan, pintarBuscador, abrirPanel, favoritos, alternarFavorito, reiniciarVisita, sala: SALA,
-    estado: () => ({ vista: vista(), pisoActivo, pisoEnPlanta, unidadActiva, estancia: estanciaAbierta,
-                     abierto: unidadAbierta && { piso: unidadAbierta.piso, numero: unidadAbierta.u.numero,
-                                                 tipologia: unidadAbierta.u.tipologia, espejo: unidadAbierta.u.espejo } }) };
-})();
-</script>
+</section>
+</main>
+
+<footer class="pie" data-tono="oscuro">
+  <div class="envoltura pie-rejilla">
+    <div><p class="nota claro">Chapinero Alto · Bogotá</p><p class="nota claro">Un proyecto de Constructora Ejemplo · NIT 900.000.000-0<br>Recursos administrados por Fiduciaria Ejemplo S.A..</p></div>
+    <nav aria-label="Pie de página"><ul><li><a href="#proyecto">El proyecto</a></li><li><a href="#edificio">El edificio</a></li><li><a href="#ubicacion">Ubicación</a></li><li><a href="#tipologias">Apartamentos</a></li><li><a href="#amenidades">Zonas comunes</a></li><li><a href="#galeria">Galería</a></li><li><a href="#financiacion">Financiación</a></li><li><a href="#avance">Avance de obra</a></li><li><a href="#contacto">Contacto</a></li></ul></nav>
+    <a class="enlace-subrayado claro" href="#inicio">Volver arriba ↑</a>
+  </div>
+  <p class="pie-gigante" aria-hidden="true" data-pie><span style="--i:0">M</span><span style="--i:1">I</span><span style="--i:2">L</span><span style="--i:3">E</span><span style="--i:4">T</span><span style="--i:5">O</span></p>
+  <p class="envoltura aviso-demo">Demostración simulada de un proyecto ficticio. No hay CRM ni asesores detrás: lo que envíes queda solo en tu navegador. Precios, áreas, fechas, direcciones y teléfonos son de ejemplo.</p>
+</footer>
+<a class="wa-flotante" href="agente/index.html" data-whatsapp target="_blank" rel="noopener" aria-label="Probar el agente de WhatsApp (simulación)"><svg class="icono" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.1l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.3-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .1-1.3c0-.1-.2-.2-.5-.3Z" fill="currentColor"/></svg><span>Probar el agente</span></a>
+<p class="aviso-flotante" role="note">Demostración simulada · nada se envía a ningún sistema</p>
+
+<dialog class="capa-showroom" id="showroom" aria-label="Showroom virtual de Mileto">
+  <div class="showroom-barra">
+    <p class="logo"><span class="logo-m">M</span><span class="logo-t">MILETO</span><small>Showroom virtual</small></p>
+    <a class="boton boton-linea-clara" href="agente/index.html" data-whatsapp target="_blank" rel="noopener" aria-label="Preguntar por WhatsApp por lo que estoy viendo"><svg class="icono" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.1l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.3-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .1-1.3c0-.1-.2-.2-.5-.3Z" fill="currentColor"/></svg><span>Preguntar por esto</span></a>
+    <button class="boton boton-claro" type="button" data-cerrar aria-label="Volver a la página"><svg class="icono" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg><span>Volver a la página</span></button>
+  </div>
+  <div class="showroom-marco"><p class="cargando"><span class="cargando-m">M</span>Abriendo el showroom…</p><iframe title="Showroom virtual de Mileto" allow="fullscreen; clipboard-write"></iframe></div>
+</dialog>
+
+<dialog class="visor" id="visor" aria-label="Imagen ampliada">
+  <figure><img alt=""><figcaption><span></span><a class="boton boton-claro" href="#" data-showroom="">Ver en 360° <svg class="icono" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 12c0 2.2 4 4 9 4s9-1.8 9-4-4-4-9-4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="m10 6 2 2-2 2" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></a></figcaption></figure>
+  <button class="visor-cerrar boton boton-linea-clara" type="button" data-cerrar aria-label="Cerrar"><svg class="icono" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
+  <button class="visor-paso anterior" type="button" data-paso="-1" aria-label="Imagen anterior">←</button>
+  <button class="visor-paso siguiente" type="button" data-paso="1" aria-label="Imagen siguiente">→</button>
+</dialog>
 </body>
 </html>
